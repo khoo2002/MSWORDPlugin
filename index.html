@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Writing Assistant</title>
+  
+  <!-- Office.js API -->
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  
+  <!-- Application modules -->
+  <script src="js/WordDocumentManager.js" defer></script>
+  <script src="js/APIService.js" defer></script>
+  <script src="js/ChatbotUI.js" defer></script>
+  <script src="js/app.js" defer></script>
+  
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <!-- <header class="app-header">
+      <h2>🤖 AI Assistant</h2>
+      <p>Document analysis & suggestions</p>
+    </header> -->
+
+    <!-- Main Content -->
+    <main class="app-main">
+      <!-- Chatbot Interface -->
+      <section class="chatbot-section">
+        <div id="chatbot-container" class="chat-container">
+          <!-- Chatbot UI will be dynamically created here -->
+        </div>
+      </section>
+
+      <!-- Status Bar -->
+      <div class="status-bar">
+        <span id="connectionStatus" class="status-indicator">🟢 Connected</span>
+        <span id="lastUpdate" class="last-update"></span>
+      </div>
+    </main>
+  </div>
+
+  <!-- Settings Modal (Quick Actions + Configuration) -->
+  <div id="settingsModal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>⚙️ Settings & Actions</h3>
+        <span class="close" onclick="toggleSettingsModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <!-- Quick Actions -->
+        <div class="modal-section">
+          <h4>Quick Actions</h4>
+          <div class="modal-actions">
+            <button id="analyzeDocument" class="btn btn-primary">
+              📊 Analyze Document
+            </button>
+            <button id="insertGreeting" class="btn btn-secondary">
+              👋 Insert Greeting
+            </button>
+            <button id="clearChat" class="btn btn-outline">
+              🗑️ Clear Chat
+            </button>
+          </div>
+        </div>
+        
+        <!-- Configuration -->
+        <div class="modal-section">
+          <h4>Ollama Configuration</h4>
+          <div class="form-group">
+            <label for="ollamaUrl">Ollama API URL:</label>
+            <input type="text" id="ollamaUrl" placeholder="http://localhost:11434" />
+            <small>Enter your Ollama API endpoint URL</small>
+          </div>
+          <div class="form-actions">
+            <button onclick="saveConfiguration()" class="btn btn-primary">Save</button>
+            <button onclick="testConnection()" class="btn btn-secondary">Test Connection</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
