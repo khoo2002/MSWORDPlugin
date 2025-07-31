@@ -15,6 +15,34 @@
   <script src="js/app.js" defer></script>
   
   <link rel="stylesheet" href="css/styles.css">
+  
+  <script>
+    // Handle model selection UI updates
+    document.addEventListener('DOMContentLoaded', function() {
+      const modelRadios = document.querySelectorAll('input[name="aiModel"]');
+      
+      modelRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+          // Update radio option styling
+          document.querySelectorAll('.radio-option').forEach(option => {
+            option.classList.remove('selected');
+          });
+          
+          if (this.checked) {
+            this.closest('.radio-option').classList.add('selected');
+          }
+        });
+      });
+    });
+    
+    // Expandable section functionality
+    function toggleExpandableSection(sectionId) {
+      const section = document.getElementById(sectionId);
+      if (section) {
+        section.classList.toggle('expanded');
+      }
+    }
+  </script>
 </head>
 <body>
   <div class="app-container">
@@ -51,31 +79,82 @@
       <div class="modal-body">
         <!-- Quick Actions -->
         <div class="modal-section">
-          <h4>Quick Actions</h4>
-          <div class="modal-actions">
-            <button id="analyzeDocument" class="btn btn-primary">
-              📊 Analyze Document
-            </button>
-            <button id="insertGreeting" class="btn btn-secondary">
-              👋 Insert Greeting
-            </button>
-            <button id="clearChat" class="btn btn-outline">
-              🗑️ Clear Chat
-            </button>
+          <div class="expandable-section" id="quickActionsSection">
+            <div class="expandable-header" onclick="toggleExpandableSection('quickActionsSection')">
+              <h4>⚡ Quick Actions</h4>
+              <span class="expand-icon">▼</span>
+            </div>
+            <div class="expandable-content">
+              <div class="expandable-inner">
+                <div class="modal-actions">
+                  <button id="analyzeDocument" class="btn btn-primary">
+                    📊 Analyze Document
+                  </button>
+                  <button id="insertGreeting" class="btn btn-secondary">
+                    👋 Insert Greeting
+                  </button>
+                  <button id="clearChat" class="btn btn-outline">
+                    🗑️ Clear Chat
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         
         <!-- Configuration -->
         <div class="modal-section">
-          <h4>Ollama Configuration</h4>
-          <div class="form-group">
-            <label for="ollamaUrl">Ollama API URL:</label>
-            <input type="text" id="ollamaUrl" placeholder="http://localhost:11434" />
-            <small>Enter your Ollama API endpoint URL</small>
-          </div>
-          <div class="form-actions">
-            <button onclick="saveConfiguration()" class="btn btn-primary">Save</button>
-            <button onclick="testConnection()" class="btn btn-secondary">Test Connection</button>
+          <div class="expandable-section" id="aiModelSection">
+            <div class="expandable-header" onclick="toggleExpandableSection('aiModelSection')">
+              <h4>🤖 AI Model Selection</h4>
+              <span class="expand-icon">▼</span>
+            </div>
+            <div class="expandable-content">
+              <div class="expandable-inner">
+                <!-- Model Toggle -->
+                <div class="form-group">
+                  <label>Select AI Model:</label>
+                  <div class="model-selector">
+                    <label class="radio-option">
+                      <input type="radio" name="aiModel" value="gemini" id="modelGemini">
+                      <span class="radio-label">🤖 Gemini 2.0 Flash</span>
+                    </label>
+                    <label class="radio-option">
+                      <input type="radio" name="aiModel" value="ollama" id="modelOllama">
+                      <span class="radio-label">🦙 Ollama (Local)</span>
+                    </label>
+                    <label class="radio-option">
+                      <input type="radio" name="aiModel" value="local" id="modelLocal">
+                      <span class="radio-label">🔧 Local Processing</span>
+                    </label>
+                  </div>
+                </div>
+                
+                <!-- Gemini API Key (shown when Gemini is selected) -->
+                <div class="form-group" id="geminiConfig" style="display: none;">
+                  <label for="geminiApiKey">Gemini API Key:</label>
+                  <input type="password" id="geminiApiKey" placeholder="Enter your Gemini API key..." />
+                  <small>
+                    Get your free Gemini API key: 
+                    <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">
+                      🔗 https://aistudio.google.com/apikey
+                    </a>
+                  </small>
+                </div>
+                
+                <!-- Ollama Configuration (shown when Ollama is selected) -->
+                <div class="form-group" id="ollamaConfig" style="display: none;">
+                  <label for="ollamaUrl">Ollama API URL:</label>
+                  <input type="text" id="ollamaUrl" placeholder="http://localhost:11434" />
+                  <small>Enter your local Ollama API endpoint URL</small>
+                </div>
+                
+                <div class="form-actions">
+                  <button onclick="saveConfiguration()" class="btn btn-primary">💾 Save Settings</button>
+                  <button onclick="testConnection()" class="btn btn-secondary" id="testButton">🧪 Test Connection</button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

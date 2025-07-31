@@ -1,13 +1,64 @@
-# AI Writing Assistant for Microsoft Word
+# 🤖 AI Writing Assistant for Microso## 🛠️ AI Model Configuration
 
-A professional Word Add-in that provides intelligent document analysis and writing suggestions using a clean, modern chatbot interface.
+### Choose Your AI Model
+The app supports multiple AI providers - select one at a time:
+
+1. **🤖 Gemini 2.0 Flash** (Recommended)
+   - Google's most advanced model
+   - Requires free API key from Google AI Studio
+   - Best performance for writing analysis
+
+2. **🦙 Ollama** (Privacy-focused)
+   - Run AI models locally on your computer
+   - Complete privacy - no data leaves your device
+   - Requires Ollama installation
+
+3. **🔧 Local Processing** (Fallback)
+   - Simple rule-based suggestions
+   - Always available, no setup required
+   - Limited capabilities
+
+### Step 1: Choose Your Model
+1. Open ⚙️ **Settings** in the app
+2. Select your preferred AI model using the radio buttons
+3. The configuration options will update automatically
+
+### Step 2: Configure Selected Model
+
+#### For Gemini:
+1. Visit **[Google AI Studio](https://aistudio.google.com/apikey)**
+2. Sign in and create a free API key
+3. Enter the API key in the settings
+4. Click **"🧪 Test Gemini"** to verify
+
+#### For Ollama:
+1. Install Ollama from [ollama.ai](https://ollama.ai)
+2. Run `ollama serve` to start the server
+3. Enter your Ollama URL (default: `http://localhost:11434`)
+4. Click **"🧪 Test Ollama"** to verify
+
+#### For Local Processing:
+- No configuration needed
+- Click **"🧪 Test Local"** to verify server connection
+
+### Step 3: Save and Test
+1. Click **"💾 Save Settings"**
+2. Use **"🧪 Test Connection"** to verify your setup
+3. Start analyzing your documents!ul Microsoft Word Add-in that provides AI-powered writing assistance using Google's Gemini API and a clean, modern chatbot interface.
 
 ## 🚀 Features
 
+### 🤖 **AI-Powered Analysis**
+- **Gemini Integration**: Uses Google's advanced Gemini 2.0 Flash model
+- **Smart Suggestions**: Context-aware writing improvements
+- **Interactive Chat**: Natural language assistance for your documents
+- **Secure API Storage**: Your API key stays private and local
+
 ### 📊 **Document Analysis**
 - Word, character, sentence, and paragraph counting
-- Real-time text analysis
-- Document statistics and insights
+- Real-time text analysis with AI insights
+- Paragraph-by-paragraph improvement suggestions
+- Document statistics and readability metrics
 
 ### 🤖 **AI Chatbot Interface**
 - Interactive chat interface for document queries
@@ -28,7 +79,49 @@ A professional Word Add-in that provides intelligent document analysis and writi
 - Professional, clean interface
 - HTTPS security with SSL certificates
 
-## 📁 Project Structure
+### 📋 **Structured AI Responses**
+All AI models provide suggestions in a consistent format:
+```json
+{
+  "totalParagraphs": 3,
+  "suggestions": [
+    {
+      "paragraphIndex": 0,
+      "originalText": "Original paragraph text...",
+      "suggestedText": "Improved paragraph text...",
+      "type": "clarity|grammar|style|structure|vocabulary",
+      "reason": "Explanation of the improvement"
+    }
+  ],
+  "timestamp": "2025-01-31T12:00:00.000Z"
+}
+```
+
+This ensures consistent processing regardless of which AI model you choose (Gemini, Ollama, or Local).
+
+## �️ Gemini API Setup
+
+### Step 1: Get Your Free API Key
+1. Visit **[Google AI Studio](https://aistudio.google.com/apikey)**
+2. Sign in with your Google account
+3. Click "Create API Key"
+4. Copy your API key (starts with `AIza...`)
+
+### Step 2: Configure the Add-in
+1. Open the AI Writing Assistant in Microsoft Word
+2. Click the ⚙️ **Settings** button
+3. Paste your API key in the **"Gemini API Key"** field
+4. Click **"💾 Save Settings"**
+5. Click **"🧪 Test Gemini"** to verify connection
+
+### Step 3: Start Using AI Features
+- **📝 Analyze**: Get AI-powered paragraph suggestions
+- **💬 Chat**: Ask questions about your document
+- **✨ Apply**: Use AI suggestions to improve your writing
+
+---
+
+## �📁 Project Structure
 
 ```
 MSWORDPlugin/

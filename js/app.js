@@ -37,8 +37,8 @@ class AIWritingAssistant {
             // Initialize UI components
             this.initializeUI();
             
-            // Create chatbot interface
-            this.chatbot = new ChatbotUI();
+            // Create chatbot interface with shared API service
+            this.chatbot = new ChatbotUI(this.apiService);
             
             // Make chatbot globally accessible for button callbacks
             window.chatbot = this.chatbot;
@@ -96,25 +96,65 @@ class AIWritingAssistant {
      * Setup configuration modal for Ollama API
      */
     setupConfigurationModal() {
-        // Add configuration button to header (if not exists)
-        // const header = document.querySelector('.app-header');
-        // if (header && !document.getElementById('configBtn')) {
-        //     const configBtn = document.createElement('button');
-        //     configBtn.id = 'configBtn';
-        //     configBtn.className = 'btn btn-outline';
-        //     configBtn.style.cssText = 'position: absolute; top: 10px; right: 10px; padding: 5px 10px; font-size: 0.8rem;';
-        //     configBtn.innerHTML = '⚙️ Config';
-        //     configBtn.onclick = () => this.toggleConfigModal();
-        //     header.style.position = 'relative';
-        //     header.appendChild(configBtn);
-        // }
-
         // Load saved Ollama URL
-        const savedUrl = localStorage.getItem('ollamaApiUrl');
-        if (savedUrl) {
-            this.apiService.setOllamaApiUrl(savedUrl);
+        const savedOllamaUrl = this.apiService.loadOllamaApiUrl();
+        if (savedOllamaUrl) {
             const urlInput = document.getElementById('ollamaUrl');
-            if (urlInput) urlInput.value = savedUrl;
+            if (urlInput) urlInput.value = savedOllamaUrl;
+        }
+
+        // Load saved Gemini API key
+        const savedGeminiKey = this.apiService.loadGeminiApiKey();
+        if (savedGeminiKey) {
+            const keyInput = document.getElementById('geminiApiKey');
+            if (keyInput) keyInput.value = savedGeminiKey;
+        }
+
+        // Load saved active model and set radio button
+        const activeModel = this.apiService.loadActiveModel();
+        const modelRadio = document.getElementById(`model${activeModel.charAt(0).toUpperCase() + activeModel.slice(1)}`);
+        if (modelRadio) {
+            modelRadio.checked = true;
+            this.showConfigForModel(activeModel);
+        }
+
+        // Setup model selection listeners
+        const modelRadios = document.querySelectorAll('input[name="aiModel"]');
+        modelRadios.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    this.showConfigForModel(e.target.value);
+                }
+            });
+        });
+    }
+
+    /**
+     * Show configuration options for selected model
+     * @param {string} model - Selected model ('gemini', 'ollama', 'local')
+     */
+    showConfigForModel(model) {
+        const geminiConfig = document.getElementById('geminiConfig');
+        const ollamaConfig = document.getElementById('ollamaConfig');
+        const testButton = document.getElementById('testButton');
+
+        // Hide all configs first
+        if (geminiConfig) geminiConfig.style.display = 'none';
+        if (ollamaConfig) ollamaConfig.style.display = 'none';
+
+        // Show relevant config
+        switch (model) {
+            case 'gemini':
+                if (geminiConfig) geminiConfig.style.display = 'block';
+                if (testButton) testButton.textContent = '🧪 Test Gemini';
+                break;
+            case 'ollama':
+                if (ollamaConfig) ollamaConfig.style.display = 'block';
+                if (testButton) testButton.textContent = '🧪 Test Ollama';
+                break;
+            case 'local':
+                if (testButton) testButton.textContent = '🧪 Test Local';
+                break;
         }
     }
 
@@ -239,26 +279,69 @@ Generated on: ${new Date().toLocaleString()}`;
      */
     saveConfiguration() {
         const urlInput = document.getElementById('ollamaUrl');
-        const url = urlInput?.value.trim();
+        const keyInput = document.getElementById('geminiApiKey');
+        const selectedModel = document.querySelector('input[name="aiModel"]:checked');
         
-        if (url) {
-            this.apiService.setOllamaApiUrl(url);
-            localStorage.setItem('ollamaApiUrl', url);
-            
-            this.chatbot?.addMessage(
-                `⚙️ Ollama API URL saved: ${url}`,
-                'bot',
-                'success'
-            );
+        const ollamaUrl = urlInput?.value.trim();
+        const geminiKey = keyInput?.value.trim();
+        const activeModel = selectedModel?.value || 'local';
+        
+        let savedItems = [];
+        
+        // Save selected model
+        this.apiService.setActiveModel(activeModel);
+        savedItems.push(`Active model: ${this.apiService.getActiveModelName()}`);
+        
+        // Save Ollama URL if provided
+        if (ollamaUrl) {
+            this.apiService.setOllamaApiUrl(ollamaUrl);
+            savedItems.push('Ollama URL');
         }
+        
+        // Save Gemini API Key if provided
+        if (geminiKey) {
+            this.apiService.setGeminiApiKey(geminiKey);
+            savedItems.push('Gemini API key');
+        }
+        
+        // Update chatbot to reflect new model
+        if (this.chatbot) {
+            this.chatbot.clearChat();
+            this.chatbot.refreshWelcomeMessage();
+        }
+        
+        this.chatbot?.addMessage(
+            `⚙️ Configuration saved: ${savedItems.join(', ')}`,
+            'bot',
+            'success'
+        );
         
         this.toggleSettingsModal();
     }
 
     /**
-     * Test connection to Ollama API
+     * Test connection based on selected model
      */
     async testConnection() {
+        const selectedModel = document.querySelector('input[name="aiModel"]:checked');
+        const activeModel = selectedModel?.value || this.apiService.activeModel;
+        
+        switch (activeModel) {
+            case 'gemini':
+                return this.testGeminiConnection();
+            case 'ollama':
+                return this.testOllamaConnection();
+            case 'local':
+                return this.testLocalConnection();
+            default:
+                this.showError('Unknown model selected');
+        }
+    }
+
+    /**
+     * Test connection to Ollama API
+     */
+    async testOllamaConnection() {
         const urlInput = document.getElementById('ollamaUrl');
         const url = urlInput?.value.trim();
         
@@ -268,6 +351,7 @@ Generated on: ${new Date().toLocaleString()}`;
         }
 
         try {
+            // Temporarily set the URL for testing
             this.apiService.setOllamaApiUrl(url);
             const connected = await this.apiService.testOllamaConnection();
             
@@ -279,13 +363,79 @@ Generated on: ${new Date().toLocaleString()}`;
                 );
             } else {
                 this.chatbot?.addMessage(
-                    '❌ Ollama connection failed. Please check the URL and try again.',
+                    '❌ Ollama connection failed. Please check the URL and ensure Ollama is running.',
                     'bot',
                     'error'
                 );
             }
         } catch (error) {
-            this.showError(`Connection test failed: ${error.message}`);
+            this.showError(`Ollama connection test failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * Test local server connection
+     */
+    async testLocalConnection() {
+        try {
+            const response = await this.apiService.makeRequest(`${this.apiService.baseUrl}/chat`, {
+                method: 'POST',
+                body: JSON.stringify({ 
+                    message: 'test', 
+                    history: [] 
+                })
+            });
+            
+            this.chatbot?.addMessage(
+                '✅ Local server connection successful!',
+                'bot',
+                'success'
+            );
+        } catch (error) {
+            this.chatbot?.addMessage(
+                '❌ Local server connection failed. Please ensure the server is running.',
+                'bot',
+                'error'
+            );
+        }
+    }
+
+    /**
+     * Test connection to Gemini API
+     */
+    async testGeminiConnection() {
+        const keyInput = document.getElementById('geminiApiKey');
+        const apiKey = keyInput?.value.trim();
+        
+        if (!apiKey) {
+            this.showError('Please enter a Gemini API key first');
+            return;
+        }
+
+        try {
+            // Temporarily set the API key for testing
+            const originalKey = this.apiService.geminiApiKey;
+            this.apiService.setGeminiApiKey(apiKey);
+            
+            const connected = await this.apiService.testGeminiConnection();
+            
+            if (connected) {
+                this.chatbot?.addMessage(
+                    '✅ Gemini API connection successful! You can now use AI-powered features.',
+                    'bot',
+                    'success'
+                );
+            } else {
+                this.chatbot?.addMessage(
+                    '❌ Gemini API connection failed. Please check your API key and try again.',
+                    'bot',
+                    'error'
+                );
+                // Restore original key on failure
+                this.apiService.setGeminiApiKey(originalKey);
+            }
+        } catch (error) {
+            this.showError(`Gemini connection test failed: ${error.message}`);
         }
     }
 

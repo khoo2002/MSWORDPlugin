@@ -3,9 +3,9 @@
  * Handles chat interface, document analysis, and suggestion management
  */
 class ChatbotUI {
-    constructor() {
+    constructor(apiService = null) {
         // Core services
-        this.apiService = new APIService();
+        this.apiService = apiService || new APIService();
         this.documentManager = new WordDocumentManager();
         
         // State management
@@ -72,6 +72,10 @@ class ChatbotUI {
      * @returns {string} Welcome message HTML
      */
     getWelcomeMessage() {
+        const aiStatus = this.apiService.getActiveModelName();
+        const modelReady = this.apiService.isCurrentModelReady();
+        const statusIcon = modelReady ? '✅' : '⚠️';
+            
         return `
             <div class="message bot-message">
                 <div class="message-content">
@@ -79,6 +83,7 @@ class ChatbotUI {
                     <br>• 📊 Analyze document
                     <br>• ✨ Suggest improvements  
                     <br>• 💬 Answer questions
+                    <br><br>${statusIcon} <strong>Active AI:</strong> ${aiStatus}
                     <br><br>Click "Analyze" to start, or use ⚙️ for more options!
                 </div>
                 <div class="message-time">${this.getCurrentTime()}</div>
@@ -287,6 +292,17 @@ class ChatbotUI {
         }
         this.chatHistory = [];
         this.currentSuggestions = [];
+    }
+
+    /**
+     * Refresh the welcome message (useful when model configuration changes)
+     */
+    refreshWelcomeMessage() {
+        const chatMessages = document.getElementById('chatMessages');
+        if (chatMessages && chatMessages.children.length === 1) {
+            // Only refresh if there's only the welcome message
+            chatMessages.innerHTML = this.getWelcomeMessage();
+        }
     }
 
     // =============================================================================
