@@ -61,6 +61,7 @@ class AIWritingAssistant {
         // Quick action buttons (now in settings modal)
         const analyzeBtn = document.getElementById('analyzeDocument');
         const greetingBtn = document.getElementById('insertGreeting');
+        const insertTableBtn = document.getElementById('insertTable');
         const clearChatBtn = document.getElementById('clearChat');
 
         if (analyzeBtn) {
@@ -73,6 +74,13 @@ class AIWritingAssistant {
         if (greetingBtn) {
             greetingBtn.addEventListener('click', () => {
                 this.insertGreeting();
+                this.toggleSettingsModal(); // Close modal after action
+            });
+        }
+
+        if (insertTableBtn) {
+            insertTableBtn.addEventListener('click', () => {
+                this.insertTable();
                 this.toggleSettingsModal(); // Close modal after action
             });
         }
@@ -253,6 +261,30 @@ Generated on: ${new Date().toLocaleString()}`;
             
         } catch (error) {
             this.showError(`Failed to insert greeting: ${error.message}`);
+        }
+    }
+
+    /**
+     * Insert a sample table into the document
+     */
+    async insertTable() {
+        try {
+            this.chatbot?.addMessage(
+                '📋 Inserting table into document...',
+                'bot',
+                'info'
+            );
+
+            await this.documentManager.insertTable();
+            
+            this.chatbot?.addMessage(
+                '📋 Table inserted successfully! A sample data table has been added to your document.',
+                'bot',
+                'success'
+            );
+            
+        } catch (error) {
+            this.showError(`Failed to insert table: ${error.message}`);
         }
     }
 
@@ -494,12 +526,31 @@ Generated on: ${new Date().toLocaleString()}`;
 
 // Global functions for HTML onclick handlers
 window.toggleSettingsModal = () => app?.toggleSettingsModal();
+window.toggleTablesModal = () => {
+    const modal = document.getElementById('tablesModal');
+    if (modal) {
+        modal.style.display = modal.style.display === 'none' || !modal.style.display ? 'block' : 'none';
+    }
+};
 window.saveConfiguration = () => app?.saveConfiguration();
 window.testConnection = () => app?.testConnection();
 
 // Initialize application when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     app = new AIWritingAssistant();
+    
+    // Setup modal close functionality
+    window.onclick = (event) => {
+        const settingsModal = document.getElementById('settingsModal');
+        const tablesModal = document.getElementById('tablesModal');
+        
+        if (event.target === settingsModal) {
+            settingsModal.style.display = 'none';
+        }
+        if (event.target === tablesModal) {
+            tablesModal.style.display = 'none';
+        }
+    };
 });
 
 // Export for debugging in console

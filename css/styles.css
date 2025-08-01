@@ -109,6 +109,16 @@ body {
     background: #5a6268;
 }
 
+.btn-success {
+    background: #28a745;
+    color: white;
+}
+
+.btn-success:hover {
+    background: #218838;
+    transform: translateY(-1px);
+}
+
 .btn-outline {
     background: transparent;
     color: #6c757d;
@@ -166,12 +176,15 @@ body {
     padding: 6px 10px;
     font-size: 0.7rem;
     cursor: pointer;
-    transition: background 0.2s ease;
+    transition: all 0.2s ease;
 }
 
 .btn-analyze:hover {
     background: #218838;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(23, 162, 184, 0.3);
 }
+
 
 /* Chat Messages - Fixed height with internal scroll */
 .chat-messages {
@@ -1176,4 +1189,254 @@ body {
 .suggestions-panel::-webkit-scrollbar-thumb:hover,
 .modal-body::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
+}
+
+/* =============================================================================
+   TABLES MODAL STYLES
+   ============================================================================= */
+
+/* Header buttons container */
+.header-buttons {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Tables button styling */
+.btn-tables {
+    background: #17a2b8;
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-tables:hover {
+    background: #138496;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(23, 162, 184, 0.3);
+}
+
+/* Tables modal specific styling */
+.tables-modal-content {
+    max-width: 90vw;
+    max-height: 90vh;
+    width: 1000px;
+    height: 700px;
+    overflow: hidden;
+}
+
+/* Search container */
+.tables-search-container {
+    margin-bottom: 15px;
+    padding: 0 5px;
+}
+
+.tables-search-input {
+    width: 100%;
+    padding: 10px 15px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #f8f9fa;
+    transition: border-color 0.2s ease;
+}
+
+.tables-search-input:focus {
+    outline: none;
+    border-color: #0078d4;
+    background: white;
+}
+
+/* Tables container with scrolling */
+.tables-container {
+    max-height: calc(100% - 80px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0 5px;
+    scroll-behavior: smooth;
+}
+
+/* Individual table wrapper */
+.table-item,
+.table-template-item {
+    margin-bottom: 25px;
+    padding: 15px;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: box-shadow 0.2s ease;
+}
+
+.table-item:hover,
+.table-template-item:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Table header info */
+.table-header,
+.template-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.table-title,
+.template-title {
+    font-weight: 600;
+    color: #495057;
+    font-size: 14px;
+}
+
+.table-info,
+.template-info {
+    font-size: 12px;
+    color: #6c757d;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.template-category {
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.template-description {
+    font-size: 13px;
+    color: #6c757d;
+    margin-bottom: 12px;
+    font-style: italic;
+    line-height: 1.4;
+}
+
+/* Template actions */
+.template-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e9ecef;
+}
+
+.btn-insert-template {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex: 1;
+}
+
+.btn-insert-template:hover {
+    background: #218838;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+}
+
+.btn-customize-template {
+    background: #6f42c1;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex: 1;
+}
+
+.btn-customize-template:hover {
+    background: #5a32a3;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(111, 66, 193, 0.3);
+}
+
+/* Table content wrapper with horizontal scroll */
+.table-content {
+    overflow-x: auto;
+    overflow-y: hidden;
+    margin: 10px 0;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+}
+
+/* Styled table */
+.document-table {
+    width: 100%;
+    min-width: max-content;
+    border-collapse: collapse;
+    font-size: 13px;
+    background: white;
+}
+
+.document-table th {
+    background: #f8f9fa;
+    color: #495057;
+    font-weight: 600;
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 2px solid #dee2e6;
+    border-right: 1px solid #dee2e6;
+    white-space: nowrap;
+}
+
+.document-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #dee2e6;
+    border-right: 1px solid #dee2e6;
+    white-space: nowrap;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.document-table tr:hover {
+    background: #f8f9fa;
+}
+
+/* Loading and empty states */
+.tables-loading,
+.tables-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6c757d;
+    font-style: italic;
+}
+
+.tables-empty {
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 2px dashed #dee2e6;
+}
+
+/* Search highlighting */
+.table-item.hidden {
+    display: none;
+}
+
+.search-highlight {
+    background: #fff3cd;
+    padding: 1px 2px;
+    border-radius: 2px;
 }

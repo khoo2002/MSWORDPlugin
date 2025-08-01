@@ -102,6 +102,9 @@
                   <button id="insertGreeting" class="btn btn-secondary">
                     👋 Insert Greeting
                   </button>
+                  <button id="insertTable" class="btn btn-success">
+                    📋 Insert Table
+                  </button>
                   <button id="clearChat" class="btn btn-outline">
                     🗑️ Clear Chat
                   </button>
@@ -171,6 +174,29 @@
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tables Modal -->
+  <div id="tablesModal" class="modal" style="display: none;">
+    <div class="modal-content tables-modal-content">
+      <div class="modal-header">
+        <h3>📋 Insert Table</h3>
+        <span class="close" onclick="toggleTablesModal()">&times;</span>
+      </div>
+      <div class="modal-body">
+        <!-- Search Bar -->
+        <div class="tables-search-container">
+          <input type="text" id="tablesSearch" placeholder="🔍 Search table templates..." class="tables-search-input" />
+        </div>
+        
+        <!-- Tables Container -->
+        <div class="tables-container" id="tablesContainer">
+          <div class="tables-loading">
+            <p>📋 Loading table templates...</p>
           </div>
         </div>
       </div>

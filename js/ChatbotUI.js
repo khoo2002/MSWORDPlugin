@@ -1,5 +1,5 @@
 /**
- * ChatbotUI - Main UI controller for the AI Writing Assistant
+ * ChatbotUI - Main UI controller for the Writing Assistant
  * Handles chat interface, document analysis, and suggestion management
  */
 class ChatbotUI {
@@ -47,7 +47,64 @@ class ChatbotUI {
         return `
             <div class="chat-header">
                 <h4>🤖 AI Assistant</h4>
-                <button id="analyzeParagraphs" class="btn-analyze">📝 Analyze</button>
+                <div class="header-buttons">
+                    <button id="analyzeParagraphs" class="btn-analyze">📝 Analyze</button>
+                    <button id="showTables" class="btn-tables">📋 Tables</button>
+                </div>
+            </div>
+            
+            <div class="chat-messages" id="chatMessages">
+                ${this.getWelcomeMessage()}
+            </div>
+
+            <div class="chat-input-container">
+                <div class="input-group">
+                    <button id="settingsButton" class="btn-settings" title="Settings & Actions">
+                        ⚙️
+                    </button>
+                    <input type="text" id="chatInput" placeholder="Ask about your document..." />
+                    <button id="sendMessage" class="btn-send" title="Send Message">
+                        ➤
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    // =============================================================================
+    // INITIALIZATION METHODS
+    // =============================================================================
+
+    /**
+     * Initialize the ChatbotUI
+     */
+    init() {
+        this.renderChatInterface();
+        this.bindEvents();
+    }
+
+    /**
+     * Render the main chat interface
+     */
+    renderChatInterface() {
+        const container = document.getElementById('chatbot-container');
+        if (!container) return;
+        
+        container.innerHTML = this.getChatInterfaceTemplate();
+    }
+
+    /**
+     * Get the HTML template for the chat interface
+     * @returns {string} Chat interface HTML
+     */
+    getChatInterfaceTemplate() {
+        return `
+            <div class="chat-header">
+                <h4>🤖 AI Assistant</h4>
+                <div class="header-buttons">
+                    <button id="analyzeParagraphs" class="btn-analyze">📝 Analyze</button>
+                    <button id="showTables" class="btn-tables">📋 Tables</button>
+                </div>
             </div>
             
             <div class="chat-messages" id="chatMessages">
@@ -109,6 +166,10 @@ Click **"Analyze"** to start, or use ⚙️ for more options!`;
         // Analysis and settings events
         elements.analyzeButton?.addEventListener('click', () => this.analyzeParagraphs());
         elements.settingsButton?.addEventListener('click', () => window.toggleSettingsModal());
+        
+        // Tables button event
+        const tablesButton = document.getElementById('showTables');
+        tablesButton?.addEventListener('click', () => this.showTablesModal());
     }
 
     /**
@@ -450,6 +511,293 @@ ${suggestions.suggestions?.length > 0 ?
             // Only refresh if there's only the welcome message
             chatMessages.innerHTML = this.getWelcomeMessage();
         }
+    }
+
+    /**
+     * Show tables modal with table templates for insertion
+     */
+    async showTablesModal() {
+        try {
+            // Show the modal
+            const modal = document.getElementById('tablesModal');
+            const container = document.getElementById('tablesContainer');
+            
+            if (!modal || !container) {
+                console.error('Tables modal elements not found');
+                return;
+            }
+            
+            modal.style.display = 'block';
+            
+            // Show loading state
+            container.innerHTML = '<div class="tables-loading"><p>📋 Loading table templates...</p></div>';
+            
+            // Get predefined table templates
+            const tableTemplates = this.getTableTemplates();
+            
+            // Render table templates
+            this.renderTableTemplates(tableTemplates);
+            
+            // Setup search functionality
+            this.setupTableTemplatesSearch(tableTemplates);
+            
+        } catch (error) {
+            console.error('Error showing tables modal:', error);
+            const container = document.getElementById('tablesContainer');
+            if (container) {
+                container.innerHTML = `
+                    <div class="tables-empty">
+                        <p>❌ Error loading table templates: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+    }
+
+    /**
+     * Get predefined table templates for insertion
+     * @returns {Array} Array of table template objects
+     */
+    getTableTemplates() {
+        return [
+            {
+                id: 'business-inventory',
+                title: 'Business Inventory Table',
+                description: 'Track products, categories, prices, and stock levels',
+                category: 'Business',
+                rows: [
+                    ['Product', 'Category', 'Price', 'Stock', 'Status'],
+                    ['Laptop Pro 15"', 'Electronics', '$1,299.99', '25', 'Available'],
+                    ['Wireless Mouse', 'Electronics', '$29.99', '150', 'Available'],
+                    ['Office Chair', 'Furniture', '$249.99', '12', 'Limited'],
+                    ['Desk Organizer', 'Office Supplies', '$19.99', '75', 'Available'],
+                    ['Monitor 27"', 'Electronics', '$349.99', '8', 'Limited']
+                ],
+                searchableText: 'business inventory product stock price category electronics furniture office supplies'
+            },
+            {
+                id: 'project-timeline',
+                title: 'Project Timeline Table',
+                description: 'Manage project tasks, deadlines, and assignments',
+                category: 'Project Management',
+                rows: [
+                    ['Task', 'Assigned To', 'Start Date', 'Due Date', 'Priority', 'Status'],
+                    ['Requirements Analysis', 'John Doe', '2025-08-01', '2025-08-05', 'High', 'In Progress'],
+                    ['UI Design', 'Jane Smith', '2025-08-06', '2025-08-12', 'Medium', 'Pending'],
+                    ['Backend Development', 'Bob Johnson', '2025-08-10', '2025-08-20', 'High', 'Not Started'],
+                    ['Testing & QA', 'Alice Brown', '2025-08-21', '2025-08-25', 'Medium', 'Not Started'],
+                    ['Deployment', 'DevOps Team', '2025-08-26', '2025-08-28', 'Critical', 'Not Started']
+                ],
+                searchableText: 'project timeline task assignment deadline priority status management development'
+            },
+            {
+                id: 'financial-budget',
+                title: 'Financial Budget Table',
+                description: 'Track expenses, income, and budget allocations',
+                category: 'Finance',
+                rows: [
+                    ['Category', 'Budgeted Amount', 'Actual Amount', 'Variance', 'Percentage'],
+                    ['Marketing', '$5,000.00', '$4,750.00', '+$250.00', '95%'],
+                    ['Operations', '$15,000.00', '$15,200.00', '-$200.00', '101%'],
+                    ['Salaries', '$25,000.00', '$25,000.00', '$0.00', '100%'],
+                    ['Office Supplies', '$1,200.00', '$980.00', '+$220.00', '82%'],
+                    ['Travel', '$3,000.00', '$2,450.00', '+$550.00', '82%']
+                ],
+                searchableText: 'financial budget expenses income variance percentage marketing operations salary'
+            }
+        ];
+    }
+
+    /**
+     * Render table templates in the modal
+     * @param {Array} templates - Array of table template data
+     */
+    /**
+     * Render table templates in the modal
+     * @param {Array} templates - Array of table template data
+     */
+    renderTableTemplates(templates) {
+        const container = document.getElementById('tablesContainer');
+        
+        let templatesHtml = '';
+        
+        templates.forEach((template, index) => {
+            templatesHtml += `
+                <div class="table-template-item" data-template-id="${template.id}" data-search-text="${template.searchableText}">
+                    <div class="template-header">
+                        <div class="template-title">� ${template.title}</div>
+                        <div class="template-info">
+                            <span class="template-category">${template.category}</span>
+                            <span>${template.rows.length - 1} rows × ${template.rows[0].length} columns</span>
+                        </div>
+                    </div>
+                    <div class="template-description">
+                        💡 ${template.description}
+                    </div>
+                    <div class="table-content">
+                        ${this.renderTableHTML(template.rows)}
+                    </div>
+                    <div class="template-actions">
+                        <button class="btn-insert-template" onclick="chatbot.insertTableTemplate('${template.id}')" title="Insert this table">
+                            ➕ Insert Table
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = templatesHtml;
+    }
+
+    /**
+     * Render table rows as HTML table
+     * @param {Array} rows - Table rows data
+     * @returns {string} HTML table string
+     */
+    renderTableHTML(rows) {
+        if (rows.length === 0) {
+            return '<p style="text-align: center; color: #6c757d; padding: 20px;">Empty table</p>';
+        }
+        
+        let tableHtml = '<table class="document-table">';
+        
+        // First row as headers
+        if (rows.length > 0) {
+            tableHtml += '<thead><tr>';
+            rows[0].forEach(cell => {
+                tableHtml += `<th>${this.escapeHtml(cell || '')}</th>`;
+            });
+            tableHtml += '</tr></thead>';
+        }
+        
+        // Remaining rows as data
+        if (rows.length > 1) {
+            tableHtml += '<tbody>';
+            for (let i = 1; i < rows.length; i++) {
+                tableHtml += '<tr>';
+                rows[i].forEach(cell => {
+                    tableHtml += `<td title="${this.escapeHtml(cell || '')}">${this.escapeHtml(cell || '')}</td>`;
+                });
+                tableHtml += '</tr>';
+            }
+            tableHtml += '</tbody>';
+        }
+        
+        tableHtml += '</table>';
+        return tableHtml;
+    }
+
+    /**
+     * Insert a table template into the document
+     * @param {string} templateId - ID of the template to insert
+     */
+    async insertTableTemplate(templateId) {
+        try {
+            const templates = this.getTableTemplates();
+            const template = templates.find(t => t.id === templateId);
+            
+            if (!template) {
+                throw new Error('Template not found');
+            }
+
+            // Show loading feedback
+            this.addMessage(`📋 Inserting ${template.title}...`, 'bot', 'info');
+            
+            // Insert the table using WordDocumentManager
+            await this.documentManager.insertCustomTable(template.rows, template.title);
+            
+            // Close modal and show success message
+            document.getElementById('tablesModal').style.display = 'none';
+            this.addMessage(`✅ ${template.title} inserted successfully!`, 'bot', 'success');
+            
+        } catch (error) {
+            console.error('Error inserting table template:', error);
+            this.addMessage(`❌ Error inserting table: ${error.message}`, 'bot', 'error');
+        }
+    }
+
+    /**
+     * Customize template with AI (placeholder for future API integration)
+     * @param {string} templateId - ID of the template to customize
+     */
+    async customizeTemplate(templateId) {
+        try {
+            const templates = this.getTableTemplates();
+            const template = templates.find(t => t.id === templateId);
+            
+            if (!template) {
+                throw new Error('Template not found');
+            }
+
+            // Placeholder for future API integration
+            this.addMessage(`🤖 AI customization for "${template.title}" will be available soon! For now, you can insert the standard template.`, 'bot', 'info');
+            
+            // TODO: Integrate with AI API to customize table based on user requirements
+            // Example: await this.apiService.customizeTable(template, userRequirements);
+            
+        } catch (error) {
+            console.error('Error customizing template:', error);
+            this.addMessage(`❌ Error customizing template: ${error.message}`, 'bot', 'error');
+        }
+    }
+
+    /**
+     * Check if AI API is ready for customization
+     * @returns {boolean} True if API is ready
+     */
+    isApiReady() {
+        // For now, always show the customize button as placeholder
+        // In the future, check if AI service is configured and ready
+        return this.apiService && this.apiService.isCurrentModelReady();
+    }
+
+    /**
+     * Setup search functionality for table templates
+     * @param {Array} templates - Array of template data
+     */
+    /**
+     * Setup search functionality for table templates
+     * @param {Array} templates - Array of template data
+     */
+    setupTableTemplatesSearch(templates) {
+        const searchInput = document.getElementById('tablesSearch');
+        if (!searchInput) return;
+        
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase().trim();
+            const templateItems = document.querySelectorAll('.table-template-item');
+            
+            templateItems.forEach(item => {
+                const searchText = item.getAttribute('data-search-text') || '';
+                const title = item.querySelector('.template-title')?.textContent || '';
+                const description = item.querySelector('.template-description')?.textContent || '';
+                
+                const isVisible = searchTerm === '' || 
+                                searchText.includes(searchTerm) || 
+                                title.toLowerCase().includes(searchTerm) ||
+                                description.toLowerCase().includes(searchTerm);
+                
+                if (isVisible) {
+                    item.classList.remove('hidden');
+                } else {
+                    item.classList.add('hidden');
+                }
+            });
+        });
+        
+        // Clear search on modal open
+        searchInput.value = '';
+    }
+
+    /**
+     * Escape HTML to prevent XSS
+     * @param {string} text - Text to escape
+     * @returns {string} Escaped text
+     */
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     /**
