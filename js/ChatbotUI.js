@@ -11,6 +11,7 @@ class ChatbotUI {
         // State management
         this.chatHistory = [];
         this.currentSuggestions = [];
+        this.paragraphMapping = []; // Store mapping between filtered and original indexes
         
         // Initialize the UI
         this.init();
@@ -68,24 +69,28 @@ class ChatbotUI {
     }
 
     /**
-     * Get welcome message HTML
+     * Get welcome message HTML with Markdown formatting
      * @returns {string} Welcome message HTML
      */
     getWelcomeMessage() {
         const aiStatus = this.apiService.getActiveModelName();
         const modelReady = this.apiService.isCurrentModelReady();
         const statusIcon = modelReady ? '✅' : '⚠️';
+        
+        // Create welcome message with Markdown formatting
+        const welcomeText = `**Hello! I can help you:**
+
+- 📊 **Analyze document** with AI insights
+- ✨ *Suggest improvements* for clarity and style  
+- 💬 **Answer questions** about your writing
+
+${statusIcon} **Active AI:** ${aiStatus}
+
+Click **"Analyze"** to start, or use ⚙️ for more options!`;
             
         return `
             <div class="message bot-message">
-                <div class="message-content">
-                    Hello! I can help you:
-                    <br>• 📊 Analyze document
-                    <br>• ✨ Suggest improvements  
-                    <br>• 💬 Answer questions
-                    <br><br>${statusIcon} <strong>Active AI:</strong> ${aiStatus}
-                    <br><br>Click "Analyze" to start, or use ⚙️ for more options!
-                </div>
+                <div class="message-content">${typeof MarkdownRenderer !== 'undefined' ? MarkdownRenderer.render(welcomeText) : welcomeText.replace(/\n/g, '<br>')}</div>
                 <div class="message-time">${this.getCurrentTime()}</div>
             </div>
         `;
@@ -152,19 +157,136 @@ class ChatbotUI {
             this.addMessage(message, 'user');
             const typingId = this.showTypingIndicator();
 
-            // Get AI response
-            const response = await this.apiService.sendChatMessage(message, this.chatHistory);
+            // Get full document context for better AI responses
+            let documentContext = '';
+            try {
+                documentContext = await this.documentManager.readDocumentText();
+                console.log('📄 [DOCUMENT CONTEXT] Retrieved:', {
+                    hasContext: !!documentContext,
+                    contextLength: documentContext ? documentContext.length : 0,
+                    wordCount: documentContext ? documentContext.split(/\s+/).filter(w => w.length > 0).length : 0,
+                    contextPreview: documentContext ? documentContext.substring(0, 300) + '...' : 'No document text',
+                    // FULL CONTEXT FOR DEBUGGING - Remove this in production
+                    FULL_CONTEXT_DEBUG: documentContext || 'No context available'
+                });
+            } catch (error) {
+                console.warn('Could not read document context:', error);
+            }
+
+            // Check if this is a paragraph analysis request
+            const isAnalysisRequest = this.isAnalysisRequest(message);
             
-            // Remove typing indicator and show response
-            this.removeTypingIndicator(typingId);
-            this.addMessage(response.message, 'bot');
-            
-            // Update chat history
-            this.updateChatHistory(message, response.message);
+            if (isAnalysisRequest) {
+                // Handle paragraph analysis in chat
+                await this.handleChatAnalysisRequest(message, typingId, documentContext);
+            } else {
+                // Regular chat with document context
+                const response = await this.apiService.sendChatMessage(message, this.chatHistory, {
+                    documentContext: documentContext
+                });
+                
+                // Remove typing indicator and show response
+                this.removeTypingIndicator(typingId);
+                this.addMessage(response.message, 'bot');
+                
+                // Update chat history
+                this.updateChatHistory(message, response.message);
+            }
 
         } catch (error) {
             this.handleSendMessageError(error);
         }
+    }
+
+    /**
+     * Check if the message is requesting paragraph analysis
+     * @param {string} message - User message
+     * @returns {boolean} True if this is an analysis request
+     */
+    isAnalysisRequest(message) {
+        const analysisKeywords = [
+            'analyze', 'analysis', 'suggest', 'improve', 'fix', 'check',
+            'review', 'edit', 'grammar', 'style', 'clarity', 'flow',
+            'paragraph', 'paragraphs', 'structure', 'coherence'
+        ];
+        
+        const lowerMessage = message.toLowerCase();
+        return analysisKeywords.some(keyword => lowerMessage.includes(keyword));
+    }
+
+    /**
+     * Handle paragraph analysis request in chat
+     * @param {string} message - User message
+     * @param {string} typingId - Typing indicator ID
+     * @param {string} documentContext - Full document text
+     */
+    async handleChatAnalysisRequest(message, typingId, documentContext) {
+        try {
+            console.log('🔍 [CHAT ANALYSIS] Starting analysis request:', {
+                message: message,
+                hasDocumentContext: !!documentContext,
+                documentContextLength: documentContext ? documentContext.length : 0,
+                documentContextPreview: documentContext ? documentContext.substring(0, 200) + '...' : 'No context'
+            });
+
+            // Read paragraphs for analysis
+            const paragraphs = await this.documentManager.readParagraphs();
+            this.validateParagraphs(paragraphs);
+
+            // Store paragraph mapping for correct index translation
+            this.paragraphMapping = paragraphs;
+
+            console.log('🔍 [CHAT ANALYSIS] Sending to API service:', {
+                paragraphCount: paragraphs.length,
+                fullDocumentTextLength: documentContext ? documentContext.length : 0,
+                paragraphsPreview: paragraphs.slice(0, 2).map(p => p.text.substring(0, 100) + '...'),
+                paragraphMapping: paragraphs.map(p => ({ filtered: p.filteredIndex, original: p.originalIndex }))
+            });
+
+            // Get suggestions with full document context
+            const suggestions = await this.apiService.getParagraphSuggestions(paragraphs, {
+                fullDocumentText: documentContext
+            });
+
+            // Remove typing indicator
+            this.removeTypingIndicator(typingId);
+
+            // Display analysis results in chat format
+            this.displayChatAnalysisResults(message, suggestions, paragraphs);
+
+        } catch (error) {
+            this.removeTypingIndicator(typingId);
+            this.addMessage(`Error performing analysis: ${error.message}`, 'bot', 'error');
+        }
+    }
+
+    /**
+     * Display analysis results in chat format
+     * @param {string} originalMessage - User's original message
+     * @param {Object} suggestions - Analysis suggestions
+     * @param {Array} paragraphs - Document paragraphs
+     */
+    displayChatAnalysisResults(originalMessage, suggestions, paragraphs) {
+        // Create analysis summary with Markdown formatting
+        const summaryMessage = `## 📊 Document Analysis Complete
+
+**📄 Document Theme:** ${suggestions.documentTheme || 'General document'}  
+**📝 Total Paragraphs:** ${suggestions.totalParagraphs}  
+**💡 Suggestions Found:** ${suggestions.suggestions?.length || 0}
+
+${suggestions.suggestions?.length > 0 ? 
+    '*I found several areas for improvement. Here are the suggestions:*' : 
+    '*Your document looks good! No major improvements needed.*'}`;
+        
+        this.addMessage(summaryMessage, 'bot', 'analysis');
+        
+        // Display each suggestion as a chat message
+        if (suggestions.suggestions && suggestions.suggestions.length > 0) {
+            this.displayAnalysisResults(paragraphs, suggestions.suggestions);
+        }
+        
+        // Update chat history
+        this.updateChatHistory(originalMessage, summaryMessage);
     }
 
     /**
@@ -181,11 +303,29 @@ class ChatbotUI {
             this.setAnalysisState(analyzeButton, true);
             this.disableAllSuggestionButtons();
 
-            // Perform document analysis
+            // Perform document analysis with full context
             const paragraphs = await this.documentManager.readParagraphs();
             this.validateParagraphs(paragraphs);
 
-            const suggestions = await this.apiService.getParagraphSuggestions(paragraphs);
+            // Store paragraph mapping for correct index translation
+            this.paragraphMapping = paragraphs;
+
+            // Get full document text for context
+            const fullDocumentText = await this.documentManager.readDocumentText();
+
+            console.log('🔍 [ANALYSIS] Full document context for analysis:', {
+                hasFullText: !!fullDocumentText,
+                fullTextLength: fullDocumentText ? fullDocumentText.length : 0,
+                fullTextPreview: fullDocumentText ? fullDocumentText.substring(0, 300) + '...' : 'No full text',
+                paragraphCount: paragraphs.length,
+                totalWordCount: fullDocumentText ? fullDocumentText.split(/\s+/).filter(w => w.length > 0).length : 0
+            });
+
+            // Get suggestions with full document context
+            const suggestions = await this.apiService.getParagraphSuggestions(paragraphs, {
+                fullDocumentText: fullDocumentText
+            });
+            
             this.displayAnalysisResults(paragraphs, suggestions.suggestions);
 
         } catch (error) {
@@ -204,14 +344,19 @@ class ChatbotUI {
         if (!suggestion) return;
 
         try {
+            // Map filtered paragraph index to original Word document index
+            const originalParagraphIndex = this.getOriginalParagraphIndex(suggestion.paragraphIndex);
+            
+            console.log(`[DEBUG] Showing suggestion for filtered index ${suggestion.paragraphIndex}, mapped to original index ${originalParagraphIndex}`);
+            
             // Insert and display suggestion in document
             const result = await this.documentManager.insertSuggestionAfterParagraph(
-                suggestion.paragraphIndex,
+                originalParagraphIndex,
                 suggestion.originalText,
                 suggestion.suggestedText
             );
 
-            await this.documentManager.navigateToParagraph(suggestion.paragraphIndex);
+            await this.documentManager.navigateToParagraph(originalParagraphIndex);
             suggestion.documentIndices = result;
 
             // Update UI to show approve/reject buttons
@@ -237,8 +382,9 @@ class ChatbotUI {
                 suggestion.suggestedText
             );
             
+            const originalParagraphIndex = this.getOriginalParagraphIndex(suggestion.paragraphIndex);
             this.showActionResult(suggestionUniqueId, 'approved', 
-                `Applied suggestion for paragraph ${suggestion.paragraphIndex + 1}`);
+                `Applied suggestion for paragraph ${originalParagraphIndex + 1}`);
             
         } catch (error) {
             this.addMessage(`❌ Error applying suggestion: ${error.message}`, 'bot', 'error');
@@ -259,8 +405,9 @@ class ChatbotUI {
                 suggestion.documentIndices.suggestedIndex
             );
             
+            const originalParagraphIndex = this.getOriginalParagraphIndex(suggestion.paragraphIndex);
             this.showActionResult(suggestionUniqueId, 'rejected', 
-                `Rejected suggestion for paragraph ${suggestion.paragraphIndex + 1}`);
+                `Rejected suggestion for paragraph ${originalParagraphIndex + 1}`);
                 
         } catch (error) {
             this.addMessage(`❌ Error rejecting suggestion: ${error.message}`, 'bot', 'error');
@@ -305,6 +452,22 @@ class ChatbotUI {
         }
     }
 
+    /**
+     * Map filtered paragraph index back to original Word document index
+     * @param {number} filteredIndex - Index in the filtered paragraph array
+     * @returns {number} Original paragraph index in Word document
+     */
+    getOriginalParagraphIndex(filteredIndex) {
+        if (!this.paragraphMapping || filteredIndex >= this.paragraphMapping.length) {
+            console.warn(`[WARNING] No paragraph mapping found for filtered index ${filteredIndex}`);
+            return filteredIndex; // Fallback to filtered index
+        }
+        
+        const originalIndex = this.paragraphMapping[filteredIndex].originalIndex;
+        console.log(`[DEBUG] Mapping filtered index ${filteredIndex} to original index ${originalIndex}`);
+        return originalIndex;
+    }
+
     // =============================================================================
     // HELPER METHODS - Analysis and Display
     // =============================================================================
@@ -331,10 +494,13 @@ class ChatbotUI {
                 // Create unique identifier for this suggestion
                 suggestion.uniqueId = `suggestion_${Date.now()}_${index}`;
                 
+                // Get the original paragraph number for display
+                const originalParagraphIndex = this.getOriginalParagraphIndex(suggestion.paragraphIndex);
+                
                 analysisContent += `\n---\n`;
                 analysisContent += `<div class="suggestion-chat-item" data-index="${index}" data-unique-id="${suggestion.uniqueId}">
                     <div class="suggestion-chat-header">
-                        <strong>📝 Paragraph ${suggestion.paragraphIndex + 1}</strong>
+                        <strong>📝 Paragraph ${originalParagraphIndex + 1}</strong>
                         <span class="suggestion-type-badge ${suggestion.type}">${suggestion.type}</span>
                     </div>
                     
@@ -502,8 +668,8 @@ class ChatbotUI {
     }
 
     /**
-     * Create a message element
-     * @param {string} content - Message content
+     * Create a message element with Markdown support
+     * @param {string} content - Message content (supports Markdown for bot messages)
      * @param {string} sender - 'user' or 'bot'
      * @param {string} type - Message type for styling
      * @returns {HTMLElement} The created message element
@@ -511,8 +677,24 @@ class ChatbotUI {
     createMessageElement(content, sender, type) {
         const messageDiv = document.createElement('div');
         messageDiv.className = `message ${sender}-message ${type}`;
+        
+        // Process content based on sender
+        let processedContent;
+        if (sender === 'bot' && typeof MarkdownRenderer !== 'undefined') {
+            // Bot messages: render Markdown (trusted content from AI)
+            processedContent = MarkdownRenderer.renderSafe(content, true);
+        } else if (sender === 'user' && typeof MarkdownRenderer !== 'undefined') {
+            // User messages: escape HTML but preserve some basic formatting
+            processedContent = MarkdownRenderer.renderSafe(content, false);
+        } else {
+            // Fallback: escape HTML for safety
+            const div = document.createElement('div');
+            div.textContent = content;
+            processedContent = div.innerHTML;
+        }
+        
         messageDiv.innerHTML = `
-            <div class="message-content">${content}</div>
+            <div class="message-content">${processedContent}</div>
             <div class="message-time">${this.getCurrentTime()}</div>
         `;
         return messageDiv;

@@ -1,5 +1,5 @@
 /**
- * LocalAIProvider - Local processing AI provider implementation
+ * LocalAIProvider - Local AI provider implementation
  * Handles communication with local API server for fallback processing
  */
 class LocalAIProvider extends BaseAIProvider {
@@ -33,16 +33,35 @@ class LocalAIProvider extends BaseAIProvider {
     }
 
     /**
-     * Send a chat message to local API
+     * Send a chat message to local API with fallback
      * @param {string} message - User message
-     * @param {Array} history - Chat history
+     * @param {Array} history - Chat history (de-prioritized in favor of document context)
+     * @param {Object} options - Additional options
+     * @param {string} options.systemMessage - System instructions for AI behavior
+     * @param {string} options.documentContext - Full document text as context (PRIORITY)
      * @returns {Promise<Object>} Local AI response
      */
-    async sendChatMessage(message, history = []) {
+    async sendChatMessage(message, history = [], options = {}) {
+        console.log('🔧 [LOCAL] Chat Request Debug:', {
+            userMessage: message,
+            historyLength: history.length,
+            hasSystemMessage: !!options.systemMessage,
+            hasDocumentContext: !!options.documentContext,
+            documentContextLength: options.documentContext ? options.documentContext.length : 0,
+            documentContextPreview: options.documentContext ? options.documentContext.substring(0, 200) + '...' : 'No document context'
+        });
+
         try {
+            const requestBody = { 
+                message, 
+                history,
+                systemMessage: options.systemMessage,
+                documentContext: options.documentContext
+            };
+            
             const response = await this.makeRequest(`${this.baseUrl}/chat`, {
                 method: 'POST',
-                body: JSON.stringify({ message, history })
+                body: JSON.stringify(requestBody)
             });
 
             // Standardize the response format
@@ -52,30 +71,39 @@ class LocalAIProvider extends BaseAIProvider {
                 return this.createResponse(response.response, 'local');
             } else {
                 // Create a fallback response if local server is not available
-                return this.createFallbackChatResponse(message);
+                return this.createFallbackChatResponse(message, options);
             }
         } catch (error) {
             console.warn('Local API not available, using fallback response:', error);
-            return this.createFallbackChatResponse(message);
+            return this.createFallbackChatResponse(message, options);
         }
     }
 
     /**
      * Get paragraph suggestions from local API
      * @param {Array} paragraphs - Array of paragraph objects
+     * @param {Object} options - Additional options
+     * @param {string} options.systemMessage - System instructions for analysis
+     * @param {string} options.fullDocumentText - Complete document text for context
      * @returns {Promise<Object>} Local suggestions
      */
-    async getParagraphSuggestions(paragraphs) {
+    async getParagraphSuggestions(paragraphs, options = {}) {
         try {
+            const requestBody = { 
+                paragraphs,
+                systemMessage: options.systemMessage,
+                fullDocumentText: options.fullDocumentText
+            };
+            
             const response = await this.makeRequest(`${this.baseUrl}/analyze-paragraphs`, {
                 method: 'POST',
-                body: JSON.stringify({ paragraphs })
+                body: JSON.stringify(requestBody)
             });
 
             return response;
         } catch (error) {
             console.warn('Local API not available, using fallback analysis:', error);
-            return this.createFallbackSuggestions(paragraphs);
+            return this.createFallbackSuggestions(paragraphs, options);
         }
     }
 
@@ -131,14 +159,25 @@ class LocalAIProvider extends BaseAIProvider {
     /**
      * Create a fallback chat response when local API is not available
      * @param {string} message - User message
+     * @param {Object} options - Chat options with context
      * @returns {Object} Fallback response
      */
-    createFallbackChatResponse(message) {
+    createFallbackChatResponse(message, options = {}) {
+        let contextAwareResponse = "";
+        
+        // Check if we have document context to provide better responses
+        if (options.documentContext && options.documentContext.trim()) {
+            const wordCount = options.documentContext.split(/\s+/).length;
+            const hasTitle = options.documentContext.split('\n')[0].length < 100;
+            
+            contextAwareResponse = `Saya dapat melihat anda sedang bekerja dengan dokumen yang mempunyai kira-kira ${wordCount} perkataan${hasTitle ? ' dengan struktur tajuk yang jelas' : ''}. `;
+        }
+        
         const responses = [
-            "I understand you're asking about your document. While the local AI server isn't available, I recommend using the 'Analyze Document' feature for basic text analysis.",
-            "The local processing server appears to be offline. You can still use the basic document analysis features or configure Gemini/Ollama for AI assistance.",
-            "I'm currently operating in limited mode. For full AI assistance, please check your network connection or configure an external AI provider like Gemini.",
-            "The AI service is temporarily unavailable. You can still perform basic document operations using the Quick Actions menu."
+            contextAwareResponse + "Walaupun pelayan AI tidak tersedia, saya dapat melihat struktur dokumen anda.\n\n**Cadangan:**\n- Cuba gunakan ciri *'Analisa Dokumen'* untuk analisis teks asas\n- Periksa butang **Analyze** di bahagian atas chat",
+            contextAwareResponse + "Pelayan pemprosesan tempatan nampaknya tidak aktif.\n\n**Pilihan yang tersedia:**\n- Gunakan ciri analisis dokumen asas\n- Konfigurasikan *Gemini* atau *Ollama* untuk bantuan AI\n- Semak tetapan dalam **Settings**",
+            contextAwareResponse + "Saya sedang beroperasi dalam **mod terhad**.\n\n**Untuk bantuan AI penuh:**\n- Semak sambungan rangkaian anda\n- Konfigurasikan penyedia AI luaran\n- Pastikan *API keys* adalah sah",
+            contextAwareResponse + "Perkhidmatan AI tidak tersedia buat sementara waktu.\n\n**Anda masih boleh:**\n- Melakukan operasi dokumen asas\n- Analisis perenggan menggunakan **menu Tindakan Pantas**\n- Akses tetapan melalui *Settings modal*"
         ];
 
         const randomResponse = responses[Math.floor(Math.random() * responses.length)];
@@ -170,14 +209,32 @@ class LocalAIProvider extends BaseAIProvider {
     /**
      * Create fallback suggestions when local API is not available
      * @param {Array} paragraphs - Array of paragraph objects
+     * @param {Object} options - Analysis options with context
      * @returns {Object} Fallback suggestions
      */
-    createFallbackSuggestions(paragraphs) {
+    createFallbackSuggestions(paragraphs, options = {}) {
+        let documentTheme = "Tidak dapat menentukan tema - pelayan analisis tempatan tidak tersedia";
+        
+        // Basic theme detection from full document if available  
+        if (options.fullDocumentText && options.fullDocumentText.trim()) {
+            const text = options.fullDocumentText.toLowerCase();
+            if (text.includes('business') || text.includes('company') || text.includes('market') || text.includes('perniagaan') || text.includes('syarikat')) {
+                documentTheme = "Dokumen Perniagaan/Profesional";
+            } else if (text.includes('research') || text.includes('study') || text.includes('analysis') || text.includes('kajian') || text.includes('penyelidikan')) {
+                documentTheme = "Dokumen Penyelidikan/Akademik";
+            } else if (text.includes('proposal') || text.includes('project') || text.includes('plan') || text.includes('cadangan') || text.includes('projek')) {
+                documentTheme = "Dokumen Cadangan/Perancangan";
+            } else {
+                documentTheme = "Dokumen Am";
+            }
+        }
+        
         return {
             totalParagraphs: paragraphs.length,
+            documentTheme: documentTheme,
             suggestions: [],
             timestamp: new Date().toISOString(),
-            note: "Local analysis server not available. Configure Gemini or Ollama for AI-powered suggestions.",
+            note: "Pelayan analisis tempatan tidak tersedia. Konfigurasikan Gemini atau Ollama untuk cadangan bertenaga AI dengan konteks dokumen penuh.",
             source: 'local-fallback'
         };
     }

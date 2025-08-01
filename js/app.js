@@ -110,6 +110,13 @@ class AIWritingAssistant {
             if (keyInput) keyInput.value = savedGeminiKey;
         }
 
+        // Load saved system message
+        const savedSystemMessage = this.apiService.systemMessage();
+        if (savedSystemMessage) {
+            const systemInput = document.getElementById('systemMessage');
+            if (systemInput) systemInput.value = savedSystemMessage;
+        }
+
         // Load saved active model and set radio button
         const activeModel = this.apiService.loadActiveModel();
         const modelRadio = document.getElementById(`model${activeModel.charAt(0).toUpperCase() + activeModel.slice(1)}`);
@@ -280,10 +287,12 @@ Generated on: ${new Date().toLocaleString()}`;
     saveConfiguration() {
         const urlInput = document.getElementById('ollamaUrl');
         const keyInput = document.getElementById('geminiApiKey');
+        const systemInput = document.getElementById('systemMessage');
         const selectedModel = document.querySelector('input[name="aiModel"]:checked');
         
         const ollamaUrl = urlInput?.value.trim();
         const geminiKey = keyInput?.value.trim();
+        const systemMessage = systemInput?.value.trim();
         const activeModel = selectedModel?.value || 'local';
         
         let savedItems = [];
@@ -302,6 +311,12 @@ Generated on: ${new Date().toLocaleString()}`;
         if (geminiKey) {
             this.apiService.setGeminiApiKey(geminiKey);
             savedItems.push('Gemini API key');
+        }
+        
+        // Save system message
+        if (systemMessage) {
+            this.apiService.systemMessage(systemMessage);
+            savedItems.push('System instructions');
         }
         
         // Update chatbot to reflect new model

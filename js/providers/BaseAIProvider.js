@@ -28,18 +28,24 @@ class BaseAIProvider {
      * Send a chat message
      * @param {string} message - User message
      * @param {Array} history - Chat history
+     * @param {Object} options - Additional options
+     * @param {string} options.systemMessage - System instructions for AI behavior
+     * @param {string} options.documentContext - Full document text as context
      * @returns {Promise<Object>} AI response
      */
-    async sendChatMessage(message, history = []) {
+    async sendChatMessage(message, history = [], options = {}) {
         throw new Error('sendChatMessage() must be implemented by subclass');
     }
 
     /**
      * Get paragraph suggestions
      * @param {Array} paragraphs - Array of paragraph objects
+     * @param {Object} options - Additional options
+     * @param {string} options.systemMessage - System instructions for analysis
+     * @param {string} options.fullDocumentText - Complete document text for context
      * @returns {Promise<Object>} Suggestions response
      */
-    async getParagraphSuggestions(paragraphs) {
+    async getParagraphSuggestions(paragraphs, options = {}) {
         throw new Error('getParagraphSuggestions() must be implemented by subclass');
     }
 

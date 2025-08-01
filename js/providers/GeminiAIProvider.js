@@ -37,21 +37,71 @@ class GeminiAIProvider extends BaseAIProvider {
     /**
      * Send a chat message to Gemini API
      * @param {string} message - User message
-     * @param {Array} history - Chat history
+     * @param {Array} history - Chat history (de-prioritized in favor of document context)
+     * @param {Object} options - Additional options
+     * @param {string} options.systemMessage - System instructions for AI behavior
+     * @param {string} options.documentContext - Full document text as context (PRIORITY)
      * @returns {Promise<Object>} Gemini AI response
      */
-    async sendChatMessage(message, history = []) {
+    async sendChatMessage(message, history = [], options = {}) {
         if (!this.isConfigured()) {
             throw new Error('Gemini API key not configured');
         }
 
+        console.log('🤖 [GEMINI] Chat Request Debug:', {
+            userMessage: message,
+            historyLength: history.length,
+            hasSystemMessage: !!options.systemMessage,
+            hasDocumentContext: !!options.documentContext,
+            documentContextLength: options.documentContext ? options.documentContext.length : 0,
+            documentContextPreview: options.documentContext ? options.documentContext.substring(0, 200) + '...' : 'No document context',
+            // FULL DOCUMENT CONTEXT FOR DEBUGGING
+            FULL_DOCUMENT_CONTEXT: options.documentContext || 'No document context available'
+        });
+
         const url = `${this.baseUrl}/${this.model}:generateContent?key=${this.apiKey}`;
         
-        // Convert chat history to Gemini format
+        // Always prioritize document context over chat history
         const contents = [];
         
-        // Add history
-        history.forEach(item => {
+        // Add system message if provided
+        if (options.systemMessage) {
+            contents.push({
+                role: 'user',
+                parts: [{ text: `System Instructions: ${options.systemMessage}\n\nIMPORTANT: Format your responses using Markdown for better readability:\n- Use **bold** for headings and key phrases\n- Use *italic* for emphasis\n- Use bullet points with - or * for lists\n- Keep responses clean, structured, and easy to read` }]
+            });
+            contents.push({
+                role: 'model',
+                parts: [{ text: 'I understand the system instructions and will format my responses using **Markdown** for *better readability* and structure.' }]
+            });
+        } else {
+            // Default Markdown formatting instruction
+            contents.push({
+                role: 'user',
+                parts: [{ text: 'IMPORTANT: Format your responses using Markdown for better readability:\n- Use **bold** for headings and key phrases\n- Use *italic* for emphasis\n- Use bullet points with - or * for lists\n- Keep responses clean, structured, and easy to read' }]
+            });
+            contents.push({
+                role: 'model',
+                parts: [{ text: 'I will format my responses using **Markdown** for *better readability* and structure.' }]
+            });
+        }
+        
+        // PRIORITY: Always add full document context first (most important)
+        if (options.documentContext && options.documentContext.trim()) {
+            const contextMessage = `IMPORTANT - FULL DOCUMENT CONTEXT (Use this as primary reference):\n\n---CURRENT DOCUMENT---\n${options.documentContext}\n---END DOCUMENT---\n\nThis is the complete, current document. Always reference this latest version for any suggestions or analysis. Previous chat history is secondary to this document content.`;
+            contents.push({
+                role: 'user',
+                parts: [{ text: contextMessage }]
+            });
+            contents.push({
+                role: 'model',
+                parts: [{ text: 'I have the complete current document and will prioritize this latest content over any previous conversation history.' }]
+            });
+        }
+        
+        // Add limited recent chat history (only last 3 exchanges to save context space)
+        const recentHistory = history.slice(-6); // Last 3 user-assistant pairs
+        recentHistory.forEach(item => {
             contents.push({
                 role: item.role === 'assistant' ? 'model' : 'user',
                 parts: [{ text: item.content }]
@@ -73,6 +123,18 @@ class GeminiAIProvider extends BaseAIProvider {
                 maxOutputTokens: 1024,
             }
         };
+
+        console.log('🤖 [GEMINI] Full Request Body:', {
+            contentsCount: contents.length,
+            contents: contents.map((content, index) => ({
+                index,
+                role: content.role,
+                textLength: content.parts[0].text.length,
+                textPreview: content.parts[0].text.substring(0, 100) + '...',
+                // SHOW FULL CONTENT FOR DEBUGGING
+                fullText: content.parts[0].text
+            }))
+        });
 
         try {
             const response = await fetch(url, {
@@ -105,34 +167,56 @@ class GeminiAIProvider extends BaseAIProvider {
     /**
      * Get paragraph suggestions from Gemini API
      * @param {Array} paragraphs - Array of paragraph objects
-     * @returns {Promise<Object>} Gemini suggestions
+     * @param {Object} options - Additional options
+     * @param {string} options.systemMessage - System instructions for analysis
+     * @param {string} options.fullDocumentText - Complete document text for context
+     * @returns {Promise<Object>} Gemini suggestions (ALL SUGGESTIONS IN MALAY)
      */
-    async getParagraphSuggestions(paragraphs) {
+    async getParagraphSuggestions(paragraphs, options = {}) {
         if (!this.isConfigured()) {
             throw new Error('Gemini API key not configured');
         }
 
         const url = `${this.baseUrl}/${this.model}:generateContent?key=${this.apiKey}`;
         
-        const prompt = `As a professional writing assistant, analyze the following paragraphs and provide specific improvement suggestions. For each paragraph that needs improvement, provide:
+        // Build comprehensive prompt with MALAY language requirement
+        let prompt = `PENTING: Sila beri semua cadangan dalam BAHASA MELAYU sahaja. Jangan gunakan bahasa Inggeris untuk cadangan.
 
-1. paragraphIndex (0-based index)
-2. originalText (the original paragraph text)
-3. suggestedText (improved version with specific changes)
-4. type (one of: "clarity", "grammar", "style", "structure", "vocabulary")
-5. reason (brief explanation of the improvement)
+${options.systemMessage || 'Sebagai pembantu penulisan profesional,'} analisa dokumen berikut dan berikan cadangan penambahbaikan yang spesifik.`;
+        
+        // Add full document context (PRIORITY)
+        if (options.fullDocumentText && options.fullDocumentText.trim()) {
+            prompt += `\n\nKONTEKS DOKUMEN PENUH (GUNAKAN SEBAGAI RUJUKAN UTAMA):\n${options.fullDocumentText}\n\n`;
+        }
+        
+        prompt += `
+Untuk setiap perenggan yang perlu diperbaiki, berikan:
 
-Only suggest improvements for paragraphs that actually need them. Skip very short paragraphs (less than 20 characters).
+1. paragraphIndex (indeks bermula dari 0)
+2. originalText (teks perenggan asal)
+3. suggestedText (versi yang diperbaiki dengan perubahan spesifik - DALAM BAHASA MELAYU)
+4. type (salah satu daripada: "clarity", "grammar", "style", "structure", "vocabulary", "coherence", "flow")
+5. reason (penjelasan ringkas tentang penambahbaikan - DALAM BAHASA MELAYU)
+6. contextualNote (bagaimana penambahbaikan ini sesuai dalam keseluruhan dokumen - DALAM BAHASA MELAYU)
 
-Paragraphs to analyze:
-${paragraphs.map((p, i) => `[${i}]: ${p.text}`).join('\n\n')}
+Pertimbangkan konteks, tema, dan aliran keseluruhan dokumen semasa membuat cadangan. Hanya cadangkan penambahbaikan untuk perenggan yang benar-benar memerlukannya. Langkau perenggan yang sangat pendek (kurang dari 20 aksara).
 
-Please respond with a JSON object containing:
+PERENGGAN UNTUK DIANALISA:
+${paragraphs.map((p, i) => `[${i}]: ${p.text} (Original Word Position: ${p.originalIndex || i})`).join('\n\n')}
+
+PENTING: Apabila memberikan cadangan, gunakan indeks yang betul:
+- Untuk paragraphIndex, gunakan FILTERED INDEX (0-${paragraphs.length - 1}) 
+- Sistem akan memetakan semula kepada kedudukan asal dalam dokumen Word
+
+Sila balas dengan objek JSON yang mengandungi:
 {
   "totalParagraphs": ${paragraphs.length},
-  "suggestions": [array of suggestion objects],
+  "documentTheme": "penerangan ringkas tentang tema utama dokumen (DALAM BAHASA MELAYU)",
+  "suggestions": [array objek cadangan dengan SEMUA teks cadangan dalam BAHASA MELAYU],
   "timestamp": "${new Date().toISOString()}"
-}`;
+}
+
+INGAT: Semua suggestedText, reason, contextualNote dan documentTheme MESTI dalam BAHASA MELAYU.`;
 
         const requestBody = {
             contents: [{
@@ -143,7 +227,7 @@ Please respond with a JSON object containing:
                 temperature: 0.3,
                 topK: 40,
                 topP: 0.95,
-                maxOutputTokens: 2048,
+                maxOutputTokens: 3072,
             }
         };
 
@@ -180,9 +264,11 @@ Please respond with a JSON object containing:
                 // Fallback if JSON parsing fails
                 return {
                     totalParagraphs: paragraphs.length,
+                    documentTheme: "Tidak dapat menentukan tema kerana masalah pemprosesan respons",
                     suggestions: [],
                     timestamp: new Date().toISOString(),
-                    note: "Gemini analysis completed but could not parse structured response"
+                    note: "Analisis Gemini selesai tetapi tidak dapat memproses respons berstruktur",
+                    rawResponse: responseText.substring(0, 500) + "..."
                 };
             } else {
                 throw new Error('Invalid response from Gemini API');

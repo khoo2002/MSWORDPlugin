@@ -44,21 +44,56 @@ class OllamaAIProvider extends BaseAIProvider {
     /**
      * Send a chat message to Ollama API
      * @param {string} message - User message
-     * @param {Array} history - Chat history
+     * @param {Array} history - Chat history (de-prioritized in favor of document context)
+     * @param {Object} options - Additional options
+     * @param {string} options.systemMessage - System instructions for AI behavior
+     * @param {string} options.documentContext - Full document text as context (PRIORITY)
      * @returns {Promise<Object>} Ollama AI response
      */
-    async sendChatMessage(message, history = []) {
+    async sendChatMessage(message, history = [], options = {}) {
         if (!this.isConfigured()) {
             throw new Error('Ollama API URL not configured');
         }
 
+        console.log('🦙 [OLLAMA] Chat Request Debug:', {
+            userMessage: message,
+            historyLength: history.length,
+            hasSystemMessage: !!options.systemMessage,
+            hasDocumentContext: !!options.documentContext,
+            documentContextLength: options.documentContext ? options.documentContext.length : 0,
+            documentContextPreview: options.documentContext ? options.documentContext.substring(0, 200) + '...' : 'No document context'
+        });
+
         const url = `${this.apiUrl}/api/chat`;
         
-        // Convert chat history to Ollama format
+        // Always prioritize document context over chat history
         const messages = [];
         
-        // Add history
-        history.forEach(item => {
+        // Add system message if provided
+        if (options.systemMessage) {
+            messages.push({
+                role: 'system',
+                content: `${options.systemMessage}\n\nIMPORTANT: Format your responses using Markdown for better readability:\n- Use **bold** for headings and key phrases\n- Use *italic* for emphasis\n- Use bullet points with - or * for lists\n- Keep responses clean, structured, and easy to read`
+            });
+        } else {
+            // Default Markdown formatting instruction
+            messages.push({
+                role: 'system',
+                content: 'IMPORTANT: Format your responses using Markdown for better readability:\n- Use **bold** for headings and key phrases\n- Use *italic* for emphasis\n- Use bullet points with - or * for lists\n- Keep responses clean, structured, and easy to read'
+            });
+        }
+        
+        // PRIORITY: Always add full document context first (most important)
+        if (options.documentContext && options.documentContext.trim()) {
+            messages.push({
+                role: 'system',
+                content: `IMPORTANT - FULL DOCUMENT CONTEXT (Use this as primary reference):\n\n---CURRENT DOCUMENT---\n${options.documentContext}\n---END DOCUMENT---\n\nThis is the complete, current document. Always reference this latest version for any suggestions or analysis. Previous chat history is secondary to this document content.`
+            });
+        }
+        
+        // Add limited recent chat history (only last 3 exchanges to save context space)
+        const recentHistory = history.slice(-6); // Last 3 user-assistant pairs
+        recentHistory.forEach(item => {
             messages.push({
                 role: item.role === 'assistant' ? 'assistant' : 'user',
                 content: item.content
@@ -76,6 +111,17 @@ class OllamaAIProvider extends BaseAIProvider {
             messages: messages,
             stream: false
         };
+
+        console.log('🦙 [OLLAMA] Full Request Body:', {
+            model: this.model,
+            messagesCount: messages.length,
+            messages: messages.map((msg, index) => ({
+                index,
+                role: msg.role,
+                contentLength: msg.content.length,
+                contentPreview: msg.content.substring(0, 100) + '...'
+            }))
+        });
 
         try {
             const response = await fetch(url, {
@@ -107,37 +153,53 @@ class OllamaAIProvider extends BaseAIProvider {
     /**
      * Get paragraph suggestions from Ollama API
      * @param {Array} paragraphs - Array of paragraph objects
-     * @returns {Promise<Object>} Ollama suggestions
+     * @param {Object} options - Additional options
+     * @param {string} options.systemMessage - System instructions for analysis
+     * @param {string} options.fullDocumentText - Complete document text for context
+     * @returns {Promise<Object>} Ollama suggestions (ALL SUGGESTIONS IN MALAY)
      */
-    async getParagraphSuggestions(paragraphs) {
+    async getParagraphSuggestions(paragraphs, options = {}) {
         if (!this.isConfigured()) {
             throw new Error('Ollama API URL not configured');
         }
 
         const url = `${this.apiUrl}/api/chat`;
         
-        const prompt = `As a professional writing assistant, analyze the following paragraphs and provide specific improvement suggestions. For each paragraph that needs improvement, provide a JSON response with this exact structure:
+        // Build comprehensive prompt with MALAY language requirement
+        let prompt = `PENTING: Sila beri semua cadangan dalam BAHASA MELAYU sahaja. Jangan gunakan bahasa Inggeris untuk cadangan.
+
+${options.systemMessage || 'Sebagai pembantu penulisan profesional,'} analisa dokumen berikut dan berikan cadangan penambahbaikan yang spesifik.`;
+        
+        // Add full document context (PRIORITY)
+        if (options.fullDocumentText && options.fullDocumentText.trim()) {
+            prompt += `\n\nKONTEKS DOKUMEN PENUH (GUNAKAN SEBAGAI RUJUKAN UTAMA):\n${options.fullDocumentText}\n\n`;
+        }
+        
+        prompt += `Untuk respons JSON dengan struktur tepat ini:
 
 {
   "totalParagraphs": ${paragraphs.length},
+  "documentTheme": "penerangan ringkas tentang tema utama dokumen (DALAM BAHASA MELAYU)",
   "suggestions": [
     {
       "paragraphIndex": 0,
-      "originalText": "original paragraph text",
-      "suggestedText": "improved paragraph text",
-      "type": "clarity|grammar|style|structure|vocabulary",
-      "reason": "brief explanation of the improvement"
+      "originalText": "teks perenggan asal",
+      "suggestedText": "teks perenggan yang diperbaiki (DALAM BAHASA MELAYU)",
+      "type": "clarity|grammar|style|structure|vocabulary|coherence|flow",
+      "reason": "penjelasan ringkas tentang penambahbaikan (DALAM BAHASA MELAYU)",
+      "contextualNote": "bagaimana penambahbaikan ini sesuai dalam keseluruhan dokumen (DALAM BAHASA MELAYU)"
     }
   ],
   "timestamp": "${new Date().toISOString()}"
 }
 
-Only suggest improvements for paragraphs that actually need them. Skip very short paragraphs (less than 20 characters).
+Pertimbangkan konteks, tema, dan aliran keseluruhan dokumen semasa membuat cadangan. Hanya cadangkan penambahbaikan untuk perenggan yang benar-benar memerlukannya. Langkau perenggan yang sangat pendek (kurang dari 20 aksara).
 
-Paragraphs to analyze:
+PERENGGAN UNTUK DIANALISA:
 ${paragraphs.map((p, i) => `[${i}]: ${p.text}`).join('\n\n')}
 
-Respond only with the JSON object, no additional text.`;
+INGAT: Semua suggestedText, reason, contextualNote dan documentTheme MESTI dalam BAHASA MELAYU.
+Balas hanya dengan objek JSON, tiada teks tambahan.`;
 
         const requestBody = {
             model: this.model,
@@ -181,9 +243,11 @@ Respond only with the JSON object, no additional text.`;
                 // Fallback if JSON parsing fails
                 return {
                     totalParagraphs: paragraphs.length,
+                    documentTheme: "Tidak dapat menentukan tema kerana masalah pemprosesan respons",
                     suggestions: [],
                     timestamp: new Date().toISOString(),
-                    note: "Ollama analysis completed but could not parse structured response"
+                    note: "Analisis Ollama selesai tetapi tidak dapat memproses respons berstruktur",
+                    rawResponse: responseText.substring(0, 500) + "..."
                 };
             } else {
                 throw new Error('Invalid response from Ollama API');

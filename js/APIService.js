@@ -23,6 +23,18 @@ class APIService {
     // =============================================================================
 
     /**
+     * Get or set the system message for AI interactions
+     * @param {string} message - Optional system message to set
+     * @returns {string} Current system message
+     */
+    systemMessage(message = null) {
+        if (message !== null) {
+            localStorage.setItem('systemMessage', message);
+        }
+        return localStorage.getItem('systemMessage') || 'You are a professional writing assistant. Provide clear, helpful, and contextual advice for improving documents. Focus on clarity, coherence, and effectiveness.';
+    }
+
+    /**
      * Load all saved configurations from localStorage
      */
     loadConfigurations() {
@@ -146,19 +158,46 @@ class APIService {
      * Send chat message to the active AI provider
      * @param {string} message - User message
      * @param {Array} history - Chat history
+     * @param {Object} options - Additional options
+     * @param {string} options.documentContext - Full document text for context
+     * @param {boolean} options.includeSystemMessage - Whether to include system message (default: true)
      * @returns {Promise<Object>} AI response
      */
-    async sendChatMessage(message, history = []) {
+    async sendChatMessage(message, history = [], options = {}) {
         const provider = this.getCurrentProvider();
         
+        console.log('⚡ [API SERVICE] Chat request routing:', {
+            activeModel: this.activeModel,
+            providerName: provider.getDisplayName(),
+            message: message,
+            historyLength: history.length,
+            hasDocumentContext: !!options.documentContext,
+            documentContextLength: options.documentContext ? options.documentContext.length : 0,
+            includeSystemMessage: options.includeSystemMessage !== false
+        });
+        
+        // Prepare options with system message and document context
+        const chatOptions = {
+            systemMessage: options.includeSystemMessage !== false ? this.systemMessage() : undefined,
+            documentContext: options.documentContext,
+            ...options
+        };
+
+        console.log('⚡ [API SERVICE] Final chat options being sent:', {
+            hasSystemMessage: !!chatOptions.systemMessage,
+            systemMessagePreview: chatOptions.systemMessage ? chatOptions.systemMessage.substring(0, 100) + '...' : 'None',
+            hasDocumentContext: !!chatOptions.documentContext,
+            documentContextLength: chatOptions.documentContext ? chatOptions.documentContext.length : 0
+        });
+        
         try {
-            return await provider.sendChatMessage(message, history);
+            return await provider.sendChatMessage(message, history, chatOptions);
         } catch (error) {
             console.error(`${this.activeModel} provider failed, falling back to local:`, error);
             
             // Fallback to local provider if active provider fails
             if (this.activeModel !== 'local') {
-                return await this.providers.local.sendChatMessage(message, history);
+                return await this.providers.local.sendChatMessage(message, history, chatOptions);
             }
             throw error;
         }
@@ -167,19 +206,48 @@ class APIService {
     /**
      * Get paragraph-specific suggestions from the active AI provider
      * @param {Array} paragraphs - Array of paragraph objects
+     * @param {Object} options - Additional options
+     * @param {string} options.fullDocumentText - Complete document text for context
+     * @param {boolean} options.includeSystemMessage - Whether to include system message (default: true)
      * @returns {Promise<Object>} Suggestions for each paragraph
      */
-    async getParagraphSuggestions(paragraphs) {
+    async getParagraphSuggestions(paragraphs, options = {}) {
         const provider = this.getCurrentProvider();
         
+        console.log('⚡ [API SERVICE] Analysis request routing:', {
+            activeModel: this.activeModel,
+            providerName: provider.getDisplayName(),
+            paragraphCount: paragraphs.length,
+            hasFullDocumentText: !!options.fullDocumentText,
+            fullDocumentTextLength: options.fullDocumentText ? options.fullDocumentText.length : 0,
+            fullDocumentPreview: options.fullDocumentText ? options.fullDocumentText.substring(0, 200) + '...' : 'No full document',
+            includeSystemMessage: options.includeSystemMessage !== false
+        });
+        
+        // Prepare options with system message and full document context
+        const analysisOptions = {
+            systemMessage: options.includeSystemMessage !== false ? this.systemMessage() : undefined,
+            fullDocumentText: options.fullDocumentText,
+            ...options
+        };
+
+        console.log('⚡ [API SERVICE] Final analysis options being sent:', {
+            hasSystemMessage: !!analysisOptions.systemMessage,
+            systemMessagePreview: analysisOptions.systemMessage ? analysisOptions.systemMessage.substring(0, 100) + '...' : 'None',
+            hasFullDocumentText: !!analysisOptions.fullDocumentText,
+            fullDocumentTextLength: analysisOptions.fullDocumentText ? analysisOptions.fullDocumentText.length : 0,
+            // FULL DOCUMENT TEXT FOR DEBUGGING
+            FULL_DOCUMENT_TEXT_DEBUG: analysisOptions.fullDocumentText || 'No full document text'
+        });
+        
         try {
-            return await provider.getParagraphSuggestions(paragraphs);
+            return await provider.getParagraphSuggestions(paragraphs, analysisOptions);
         } catch (error) {
             console.error(`${this.activeModel} provider failed, falling back to local:`, error);
             
             // Fallback to local provider if active provider fails
             if (this.activeModel !== 'local') {
-                return await this.providers.local.getParagraphSuggestions(paragraphs);
+                return await this.providers.local.getParagraphSuggestions(paragraphs, analysisOptions);
             }
             throw error;
         }

@@ -33,14 +33,26 @@ class WordDocumentManager {
             throw new Error('Office.js is not ready');
         }
 
+        console.log('📖 [WORD DOCUMENT] Starting to read document text...');
+
         return new Promise((resolve, reject) => {
             Word.run(async (context) => {
                 try {
                     const body = context.document.body;
                     context.load(body, "text");
                     await context.sync();
+                    
+                    console.log('📖 [WORD DOCUMENT] Text retrieved:', {
+                        textLength: body.text ? body.text.length : 0,
+                        wordCount: body.text ? body.text.split(/\s+/).filter(w => w.length > 0).length : 0,
+                        textPreview: body.text ? body.text.substring(0, 500) + '...' : 'No text',
+                        // FULL TEXT FOR DEBUGGING - Remove this in production
+                        FULL_TEXT_DEBUG: body.text || 'No text available'
+                    });
+                    
                     resolve(body.text);
                 } catch (error) {
+                    console.error('📖 [WORD DOCUMENT] Error reading text:', error);
                     reject(error);
                 }
             });
@@ -63,19 +75,37 @@ class WordDocumentManager {
                     context.load(paragraphs, "text");
                     await context.sync();
 
+                    console.log('📖 [PARAGRAPH READING] Total paragraphs found:', paragraphs.items.length);
+
                     const paragraphData = [];
+                    let filteredIndex = 0; // Index in the filtered array
+                    
                     for (let i = 0; i < paragraphs.items.length; i++) {
                         const paragraph = paragraphs.items[i];
-                        if (paragraph.text.trim()) {
+                        const trimmedText = paragraph.text.trim();
+                        
+                        console.log(`📖 [PARAGRAPH ${i}] Text: "${paragraph.text}" (Length: ${paragraph.text.length}, Trimmed: ${trimmedText.length})`);
+                        
+                        if (trimmedText) {
                             paragraphData.push({
-                                index: i,
-                                text: paragraph.text.trim(),
+                                originalIndex: i,        // Original position in Word document
+                                filteredIndex: filteredIndex, // Position in our filtered array
+                                text: trimmedText,
                                 range: paragraph.getRange()
                             });
+                            filteredIndex++;
                         }
                     }
+                    
+                    console.log('📖 [PARAGRAPH READING] Filtered paragraphs:', {
+                        totalOriginal: paragraphs.items.length,
+                        totalFiltered: paragraphData.length,
+                        mapping: paragraphData.map(p => ({ filtered: p.filteredIndex, original: p.originalIndex, text: p.text.substring(0, 50) + '...' }))
+                    });
+                    
                     resolve(paragraphData);
                 } catch (error) {
+                    console.error('📖 [PARAGRAPH READING] Error:', error);
                     reject(error);
                 }
             });
@@ -83,8 +113,33 @@ class WordDocumentManager {
     }
 
     /**
-     * Replace text in a specific paragraph
-     * @param {number} paragraphIndex - Index of the paragraph to replace
+     * Replace text in a specific paragraph using filtered index
+     * @param {number} filteredIndex - Index in the filtered paragraph array
+     * @param {string} newText - New text content
+     * @param {Array} paragraphMapping - Array of paragraph objects with originalIndex mapping
+     * @returns {Promise<boolean>} Success status
+     */
+    async replaceParagraphByFilteredIndex(filteredIndex, newText, paragraphMapping) {
+        if (!this.isOfficeReady) {
+            throw new Error('Office.js is not ready');
+        }
+
+        // Find the original Word document index
+        const paragraphInfo = paragraphMapping[filteredIndex];
+        if (!paragraphInfo) {
+            throw new Error(`Filtered index ${filteredIndex} not found in paragraph mapping`);
+        }
+
+        const originalIndex = paragraphInfo.originalIndex;
+        
+        console.log(`📝 [PARAGRAPH REPLACE] Mapping filtered index ${filteredIndex} to original index ${originalIndex}`);
+        
+        return this.replaceParagraph(originalIndex, newText);
+    }
+
+    /**
+     * Replace text in a specific paragraph using original Word index
+     * @param {number} paragraphIndex - Original index in Word document
      * @param {string} newText - New text content
      * @returns {Promise<boolean>} Success status
      */

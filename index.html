@@ -14,6 +14,9 @@
   <script src="js/providers/OllamaAIProvider.js" defer></script>
   <script src="js/providers/LocalAIProvider.js" defer></script>
   
+  <!-- Utility modules -->
+  <script src="js/utils/MarkdownRenderer.js" defer></script>
+  
   <!-- Application modules -->
   <script src="js/WordDocumentManager.js" defer></script>
   <script src="js/APIService.js" defer></script>
@@ -153,6 +156,13 @@
                   <label for="ollamaUrl">Ollama API URL:</label>
                   <input type="text" id="ollamaUrl" placeholder="http://localhost:11434" />
                   <small>Enter your local Ollama API endpoint URL</small>
+                </div>
+                
+                <!-- System Message Configuration -->
+                <div class="form-group">
+                  <label for="systemMessage">AI System Instructions:</label>
+                  <textarea id="systemMessage" rows="3" placeholder="Enter custom instructions for the AI assistant..."></textarea>
+                  <small>Optional: Customize how the AI behaves and responds. Leave empty for default professional writing assistant behavior.</small>
                 </div>
                 
                 <div class="form-actions">
