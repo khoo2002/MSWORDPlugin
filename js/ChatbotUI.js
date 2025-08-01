@@ -144,11 +144,27 @@ class ChatbotUI {
 ${statusIcon} **Active AI:** ${aiStatus}
 
 Click **"Analyze"** to start, or use ⚙️ for more options!`;
+
+        // Sample sources for welcome message demonstration
+        const welcomeSources = [
+            {
+                title: "Microsoft Word Add-ins Documentation",
+                url: "https://docs.microsoft.com/en-us/office/dev/add-ins/word/",
+                description: "Official documentation for Word add-ins development"
+            },
+            "https://www.microsoft.com/en-us/microsoft-365/word"
+        ];
+
+        const messageId = `welcome-${Date.now()}`;
+        const feedbackButtons = this.createFeedbackButtons(messageId, welcomeSources);
             
         return `
-            <div class="message bot-message">
+            <div class="message bot-message" id="${messageId}">
                 <div class="message-content">${typeof MarkdownRenderer !== 'undefined' ? MarkdownRenderer.render(welcomeText) : welcomeText.replace(/\n/g, '<br>')}</div>
-                <div class="message-time">${this.getCurrentTime()}</div>
+                <div class="message-footer">
+                    <div class="message-time">${this.getCurrentTime()}</div>
+                    ${feedbackButtons}
+                </div>
             </div>
         `;
     }
@@ -248,7 +264,10 @@ Click **"Analyze"** to start, or use ⚙️ for more options!`;
                 
                 // Remove typing indicator and show response
                 this.removeTypingIndicator(typingId);
-                this.addMessage(response.message, 'bot');
+                
+                // Add sample sources for demonstration (in real implementation, sources would come from API)
+                const sampleSources = this.generateSampleSources(message);
+                this.addMessage(response.message, 'bot', '', sampleSources);
                 
                 // Update chat history
                 this.updateChatHistory(message, response.message);
@@ -480,12 +499,13 @@ ${suggestions.suggestions?.length > 0 ?
      * @param {string} content - Message content
      * @param {string} sender - 'user' or 'bot'
      * @param {string} type - Message type for styling
+     * @param {Array} sources - Optional array of source URLs/references for bot messages
      */
-    addMessage(content, sender, type = '') {
+    addMessage(content, sender, type = '', sources = []) {
         const chatMessages = document.getElementById('chatMessages');
         if (!chatMessages) return;
 
-        const messageElement = this.createMessageElement(content, sender, type);
+        const messageElement = this.createMessageElement(content, sender, type, sources);
         chatMessages.appendChild(messageElement);
         this.scrollToBottom(chatMessages);
     }
@@ -1022,8 +1042,10 @@ ${suggestions.suggestions?.length > 0 ?
      * @param {string} type - Message type for styling
      * @returns {HTMLElement} The created message element
      */
-    createMessageElement(content, sender, type) {
+    createMessageElement(content, sender, type, sources = []) {
         const messageDiv = document.createElement('div');
+        const messageId = `message-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        messageDiv.id = messageId;
         messageDiv.className = `message ${sender}-message ${type}`;
         
         // Process content based on sender
@@ -1041,9 +1063,15 @@ ${suggestions.suggestions?.length > 0 ?
             processedContent = div.innerHTML;
         }
         
+        // Add feedback buttons for bot messages
+        const feedbackButtons = sender === 'bot' ? this.createFeedbackButtons(messageId, sources) : '';
+        
         messageDiv.innerHTML = `
             <div class="message-content">${processedContent}</div>
-            <div class="message-time">${this.getCurrentTime()}</div>
+            <div class="message-footer">
+                <div class="message-time">${this.getCurrentTime()}</div>
+                ${feedbackButtons}
+            </div>
         `;
         return messageDiv;
     }
@@ -1100,5 +1128,376 @@ ${suggestions.suggestions?.length > 0 ?
     findTypingIndicator() {
         const typingElement = document.querySelector('.typing');
         return typingElement?.id || null;
+    }
+
+    // =============================================================================
+    // FEEDBACK AND SOURCES METHODS
+    // =============================================================================
+
+    /**
+     * Create feedback buttons for bot messages
+     * @param {string} messageId - Unique message ID
+     * @param {Array} sources - Array of source URLs/references
+     * @returns {string} HTML for feedback buttons
+     */
+    createFeedbackButtons(messageId, sources = []) {
+        const sourcesButton = sources.length > 0 
+            ? `<button class="feedback-btn sources-btn" onclick="chatbot.showSourcesModal('${messageId}', ${JSON.stringify(sources).replace(/"/g, '&quot;')})">🔗 Sources</button>`
+            : '';
+
+        return `
+            <div class="feedback-buttons">
+                <button class="feedback-btn like-btn" onclick="chatbot.handleFeedback('${messageId}', 'like')">👍</button>
+                <button class="feedback-btn dislike-btn" onclick="chatbot.handleFeedback('${messageId}', 'dislike')">👎</button>
+                ${sourcesButton}
+            </div>
+        `;
+    }
+
+    /**
+     * Handle like/dislike feedback
+     * @param {string} messageId - Message ID
+     * @param {string} feedbackType - 'like' or 'dislike'
+     */
+    handleFeedback(messageId, feedbackType) {
+        const messageElement = document.getElementById(messageId);
+        if (!messageElement) return;
+
+        const feedbackButtons = messageElement.querySelector('.feedback-buttons');
+        if (!feedbackButtons) return;
+
+        // Check if feedback has already been submitted
+        const submittedIndicator = feedbackButtons.querySelector('.feedback-submitted-indicator');
+        if (submittedIndicator) {
+            // Feedback already submitted, don't allow changes
+            return;
+        }
+
+        // Show feedback input
+        const existingInput = messageElement.querySelector('.feedback-input-container');
+        if (existingInput) {
+            existingInput.remove();
+        }
+
+        const inputContainer = document.createElement('div');
+        inputContainer.className = 'feedback-input-container';
+        
+        const promptText = feedbackType === 'like' 
+            ? 'What did you like about this response?' 
+            : 'What could be improved?';
+
+        inputContainer.innerHTML = `
+            <div class="feedback-input-prompt">${promptText}</div>
+            <input type="text" class="feedback-input" placeholder="Your feedback..." maxlength="200">
+            <div class="feedback-input-actions">
+                <button class="btn-feedback-submit" onclick="chatbot.submitFeedback('${messageId}', '${feedbackType}')">Submit</button>
+                <button class="btn-feedback-cancel" onclick="chatbot.cancelFeedback('${messageId}')">Cancel</button>
+            </div>
+        `;
+
+        messageElement.querySelector('.message-footer').appendChild(inputContainer);
+        
+        // Focus the input
+        const input = inputContainer.querySelector('.feedback-input');
+        input.focus();
+
+        // Handle Enter key
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.submitFeedback(messageId, feedbackType);
+            }
+        });
+
+        // Highlight the clicked button
+        const likeBtn = feedbackButtons.querySelector('.like-btn');
+        const dislikeBtn = feedbackButtons.querySelector('.dislike-btn');
+        
+        likeBtn.classList.remove('active');
+        dislikeBtn.classList.remove('active');
+        
+        if (feedbackType === 'like') {
+            likeBtn.classList.add('active');
+        } else {
+            dislikeBtn.classList.add('active');
+        }
+    }
+
+    /**
+     * Submit feedback comment
+     * @param {string} messageId - Message ID
+     * @param {string} feedbackType - 'like' or 'dislike'
+     */
+    submitFeedback(messageId, feedbackType) {
+        const messageElement = document.getElementById(messageId);
+        if (!messageElement) return;
+
+        const inputContainer = messageElement.querySelector('.feedback-input-container');
+        const input = inputContainer?.querySelector('.feedback-input');
+        
+        if (!input) return;
+
+        const comment = input.value.trim();
+        
+        // Store feedback (you can extend this to send to analytics/server)
+        const feedback = {
+            messageId,
+            type: feedbackType,
+            comment,
+            timestamp: new Date().toISOString()
+        };
+
+        console.log('User feedback:', feedback);
+
+        // Show thank you message
+        inputContainer.innerHTML = `
+            <div class="feedback-thank-you">
+                <span class="feedback-icon">${feedbackType === 'like' ? '👍' : '👎'}</span>
+                Thank you for your feedback${comment ? ': "' + comment + '"' : '!'}
+            </div>
+        `;
+
+        // Disable all feedback buttons for this message
+        this.disableFeedbackButtons(messageId, feedbackType);
+
+        // Auto-hide after 3 seconds
+        setTimeout(() => {
+            inputContainer.remove();
+        }, 3000);
+    }
+
+    /**
+     * Disable feedback buttons after submission
+     * @param {string} messageId - Message ID
+     * @param {string} submittedType - The type of feedback that was submitted
+     */
+    disableFeedbackButtons(messageId, submittedType) {
+        const messageElement = document.getElementById(messageId);
+        if (!messageElement) return;
+
+        const feedbackButtons = messageElement.querySelector('.feedback-buttons');
+        if (!feedbackButtons) return;
+
+        const likeBtn = feedbackButtons.querySelector('.like-btn');
+        const dislikeBtn = feedbackButtons.querySelector('.dislike-btn');
+
+        // Disable and style the buttons
+        if (likeBtn) {
+            likeBtn.disabled = true;
+            likeBtn.style.cursor = 'not-allowed';
+            likeBtn.style.opacity = submittedType === 'like' ? '1' : '0.5';
+            likeBtn.classList.remove('active');
+            if (submittedType === 'like') {
+                likeBtn.classList.add('active', 'submitted');
+            }
+            // Remove click handler
+            likeBtn.onclick = null;
+        }
+
+        if (dislikeBtn) {
+            dislikeBtn.disabled = true;
+            dislikeBtn.style.cursor = 'not-allowed';
+            dislikeBtn.style.opacity = submittedType === 'dislike' ? '1' : '0.5';
+            dislikeBtn.classList.remove('active');
+            if (submittedType === 'dislike') {
+                dislikeBtn.classList.add('active', 'submitted');
+            }
+            // Remove click handler
+            dislikeBtn.onclick = null;
+        }
+
+        // Add a small indicator showing feedback was submitted
+        const existingIndicator = feedbackButtons.querySelector('.feedback-submitted-indicator');
+        if (!existingIndicator) {
+            const indicator = document.createElement('span');
+            indicator.className = 'feedback-submitted-indicator';
+            indicator.textContent = '✓ Submitted';
+            indicator.style.fontSize = '0.6rem';
+            indicator.style.color = '#28a745';
+            indicator.style.fontWeight = '500';
+            indicator.style.marginLeft = '8px';
+            feedbackButtons.appendChild(indicator);
+        }
+    }
+
+    /**
+     * Cancel feedback input
+     * @param {string} messageId - Message ID
+     */
+    cancelFeedback(messageId) {
+        const messageElement = document.getElementById(messageId);
+        if (!messageElement) return;
+
+        const inputContainer = messageElement.querySelector('.feedback-input-container');
+        inputContainer?.remove();
+
+        // Reset button states (only if not already submitted)
+        const feedbackButtons = messageElement.querySelector('.feedback-buttons');
+        if (feedbackButtons && !feedbackButtons.querySelector('.feedback-submitted-indicator')) {
+            feedbackButtons.querySelectorAll('.feedback-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+        }
+    }
+
+    /**
+     * Show sources modal
+     * @param {string} messageId - Message ID
+     * @param {Array} sources - Array of source objects
+     */
+    showSourcesModal(messageId, sources) {
+        // Create or get sources modal
+        let modal = document.getElementById('sourcesModal');
+        if (!modal) {
+            modal = this.createSourcesModal();
+            document.body.appendChild(modal);
+        }
+
+        // Populate sources
+        const container = modal.querySelector('.sources-container');
+        if (!container) return;
+
+        if (!sources || sources.length === 0) {
+            container.innerHTML = '<p class="no-sources">No sources available for this response.</p>';
+        } else {
+            const sourcesList = sources.map((source, index) => {
+                if (typeof source === 'string') {
+                    // Simple URL string
+                    return `
+                        <div class="source-item">
+                            <div class="source-number">${index + 1}</div>
+                            <div class="source-content">
+                                <a href="${source}" target="_blank" rel="noopener noreferrer">${source}</a>
+                            </div>
+                        </div>
+                    `;
+                } else if (typeof source === 'object') {
+                    // Source object with title and URL
+                    return `
+                        <div class="source-item">
+                            <div class="source-number">${index + 1}</div>
+                            <div class="source-content">
+                                <div class="source-title">${source.title || 'Reference'}</div>
+                                <a href="${source.url}" target="_blank" rel="noopener noreferrer">${source.url}</a>
+                                ${source.description ? `<div class="source-description">${source.description}</div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
+                return '';
+            }).join('');
+
+            container.innerHTML = `
+                <div class="sources-header">
+                    <h3>📚 Sources & References</h3>
+                    <p>The following sources were referenced for this response:</p>
+                </div>
+                <div class="sources-list">
+                    ${sourcesList}
+                </div>
+            `;
+        }
+
+        // Show modal
+        modal.style.display = 'flex';
+    }
+
+    /**
+     * Create sources modal element
+     * @returns {HTMLElement} Sources modal element
+     */
+    createSourcesModal() {
+        const modal = document.createElement('div');
+        modal.id = 'sourcesModal';
+        modal.className = 'modal sources-modal';
+        
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <span class="close-modal" onclick="chatbot.hideSourcesModal()">&times;</span>
+                </div>
+                <div class="sources-container">
+                    <!-- Sources content will be populated here -->
+                </div>
+            </div>
+        `;
+
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.hideSourcesModal();
+            }
+        });
+
+        return modal;
+    }
+
+    /**
+     * Generate sample sources for demonstration
+     * @param {string} message - User message to contextualize sources
+     * @returns {Array} Array of sample source objects
+     */
+    generateSampleSources(message) {
+        // In a real implementation, sources would come from the AI API response
+        const lowercaseMessage = message.toLowerCase();
+        
+        if (lowercaseMessage.includes('grammar') || lowercaseMessage.includes('writing')) {
+            return [
+                {
+                    title: "Purdue Writing Lab - Grammar Guide",
+                    url: "https://owl.purdue.edu/owl/general_writing/grammar/",
+                    description: "Comprehensive grammar rules and writing guidelines"
+                },
+                {
+                    title: "Grammarly Writing Resources",
+                    url: "https://www.grammarly.com/blog/category/writing-tips/",
+                    description: "Professional writing tips and best practices"
+                }
+            ];
+        }
+        
+        if (lowercaseMessage.includes('style') || lowercaseMessage.includes('improve')) {
+            return [
+                {
+                    title: "Chicago Manual of Style",
+                    url: "https://www.chicagomanualofstyle.org/",
+                    description: "Authoritative guide for writing and style"
+                },
+                "https://www.hemingwayapp.com/"
+            ];
+        }
+        
+        if (lowercaseMessage.includes('business') || lowercaseMessage.includes('professional')) {
+            return [
+                {
+                    title: "Business Writing Guidelines",
+                    url: "https://www.harvard.edu/business-writing",
+                    description: "Professional business communication standards"
+                }
+            ];
+        }
+        
+        // Default sources for general queries
+        if (Math.random() > 0.5) {
+            return [
+                "https://www.microsoft.com/en-us/microsoft-365/word",
+                {
+                    title: "Writing Best Practices",
+                    url: "https://example.com/writing-guide",
+                    description: "General writing improvement resources"
+                }
+            ];
+        }
+        
+        return []; // No sources for some responses
+    }
+
+    /**
+     * Hide sources modal
+     */
+    hideSourcesModal() {
+        const modal = document.getElementById('sourcesModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
     }
 }
