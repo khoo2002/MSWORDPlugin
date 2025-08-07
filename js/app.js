@@ -62,6 +62,7 @@ class AIWritingAssistant {
         const analyzeBtn = document.getElementById('analyzeDocument');
         const greetingBtn = document.getElementById('insertGreeting');
         const insertTableBtn = document.getElementById('insertTable');
+        const insertAdvancedTableBtn = document.getElementById('insertAdvancedTable');
         const clearChatBtn = document.getElementById('clearChat');
 
         if (analyzeBtn) {
@@ -81,6 +82,13 @@ class AIWritingAssistant {
         if (insertTableBtn) {
             insertTableBtn.addEventListener('click', () => {
                 this.insertTable();
+                this.toggleSettingsModal(); // Close modal after action
+            });
+        }
+
+        if (insertAdvancedTableBtn) {
+            insertAdvancedTableBtn.addEventListener('click', () => {
+                this.insertAdvancedMalaysianTable();
                 this.toggleSettingsModal(); // Close modal after action
             });
         }
@@ -278,13 +286,163 @@ Generated on: ${new Date().toLocaleString()}`;
             await this.documentManager.insertTable();
             
             this.chatbot?.addMessage(
-                '📋 Table inserted successfully! A sample data table has been added to your document.',
+                '� Malaysian Statistics Table inserted successfully! STATISTIK PENURUNAN KANDUNGAN 3R has been added to your document with proper government formatting.',
                 'bot',
                 'success'
             );
             
         } catch (error) {
             this.showError(`Failed to insert table: ${error.message}`);
+        }
+    }
+
+    /**
+     * Insert an advanced Malaysian statistics table with complex structure
+     */
+    async insertAdvancedMalaysianTable() {
+        try {
+            this.chatbot?.addMessage(
+                '📊 Inserting advanced Malaysian statistics table with merged cells and professional formatting...',
+                'bot',
+                'info'
+            );
+
+            // Create the advanced Malaysian statistics table structure
+            const malaysianTableStructure = {
+                id: 'malaysian_stats_' + Date.now(),
+                title: "STATISTIK PENURUNAN KANDUNGAN 3R",
+                metadata: {
+                    source: "MCMC Malaysia",
+                    description: "Perincian penurunan kandungan 3R dari tahun 2022 hingga 2025",
+                    dateRange: "2022-2025",
+                    lastUpdated: "31 Julai 2025",
+                    category: "Government Statistics"
+                },
+                structure: {
+                    headerLevels: [
+                        // Main headers
+                        {
+                            cells: [
+                                { text: "No.", rowspan: 2, alignment: "center" },
+                                { text: "Tahun", rowspan: 2, alignment: "center" },
+                                { text: "Penurunan Kandungan 3R", colspan: 3, alignment: "center" },
+                                { text: "Col5", rowspan: 2, alignment: "center" },
+                                { text: "Col6", rowspan: 2, alignment: "center" }
+                            ]
+                        },
+                        // Sub headers
+                        {
+                            cells: [
+                                { text: "Agama", alignment: "center", style: "subheader" },
+                                { text: "Kaum", alignment: "center", style: "subheader" },
+                                { text: "Raja", alignment: "center", style: "subheader" }
+                            ]
+                        }
+                    ],
+                    dataRows: [
+                        {
+                            cells: [
+                                { value: "1.", displayText: "1.", alignment: "center" },
+                                { value: "2022", displayText: "2022", alignment: "center" },
+                                { value: "40", displayText: "40", alignment: "right", dataType: "number" },
+                                { value: "119", displayText: "119", alignment: "right", dataType: "number" },
+                                { value: "16", displayText: "16", alignment: "right", dataType: "number" },
+                                { value: "175.0", displayText: "175.0", alignment: "right", dataType: "number" },
+                                { value: "422.0", displayText: "422.0", alignment: "right", dataType: "number" }
+                            ]
+                        },
+                        {
+                            cells: [
+                                { value: "2.", displayText: "2.", alignment: "center" },
+                                { value: "2023", displayText: "2023", alignment: "center" },
+                                { value: "519", displayText: "519", alignment: "right", dataType: "number" },
+                                { value: "960", displayText: "960", alignment: "right", dataType: "number" },
+                                { value: "154", displayText: "154", alignment: "right", dataType: "number" },
+                                { value: "1633.0", displayText: "1633.0", alignment: "right", dataType: "number" },
+                                { value: "3396.0", displayText: "3396.0", alignment: "right", dataType: "number" }
+                            ]
+                        },
+                        {
+                            cells: [
+                                { value: "3.", displayText: "3.", alignment: "center" },
+                                { value: "2024", displayText: "2024", alignment: "center" },
+                                { value: "1772", displayText: "1772", alignment: "right", dataType: "number" },
+                                { value: "2670", displayText: "2670", alignment: "right", dataType: "number" },
+                                { value: "388", displayText: "388", alignment: "right", dataType: "number" },
+                                { value: "4830.0", displayText: "4830.0", alignment: "right", dataType: "number" },
+                                { value: "13805.0", displayText: "13805.0", alignment: "right", dataType: "number" }
+                            ]
+                        },
+                        {
+                            cells: [
+                                { value: "4.", displayText: "4.", alignment: "center" },
+                                { value: "2025", displayText: "2025", alignment: "center" },
+                                { value: "148", displayText: "148", alignment: "right", dataType: "number" },
+                                { value: "992", displayText: "992", alignment: "right", dataType: "number" },
+                                { value: "76", displayText: "76", alignment: "right", dataType: "number" },
+                                { value: "1216.0", displayText: "1216.0", alignment: "right", dataType: "number" },
+                                { value: "25962.0", displayText: "25962.0", alignment: "right", dataType: "number" }
+                            ]
+                        }
+                    ],
+                    summaryRows: [
+                        {
+                            label: "Jumlah",
+                            cells: [
+                                { value: "Jumlah", displayText: "Jumlah", alignment: "center", style: "summary" },
+                                { value: "", displayText: "", alignment: "center" },
+                                { value: "2479", displayText: "2479", alignment: "right", style: "summary", isCalculated: true },
+                                { value: "4741", displayText: "4741", alignment: "right", style: "summary", isCalculated: true },
+                                { value: "634", displayText: "634", alignment: "right", style: "summary", isCalculated: true },
+                                { value: "7854", displayText: "7854", alignment: "right", style: "summary", isCalculated: true },
+                                { value: "43585.0", displayText: "43585.0", alignment: "right", style: "summary", isCalculated: true }
+                            ]
+                        }
+                    ]
+                },
+                formatting: {
+                    headerStyle: {
+                        bold: true,
+                        backgroundColor: "#2F5597",
+                        textColor: "#FFFFFF",
+                        borderStyle: "solid",
+                        borderWidth: "2px"
+                    },
+                    subHeaderStyle: {
+                        bold: true,
+                        backgroundColor: "#E6F3FF",
+                        textColor: "#000000",
+                        borderStyle: "solid",
+                        borderWidth: "1px"
+                    },
+                    dataStyle: {
+                        backgroundColor: "#FFFFFF",
+                        textColor: "#000000",
+                        borderStyle: "solid",
+                        borderWidth: "1px"
+                    },
+                    summaryStyle: {
+                        bold: true,
+                        backgroundColor: "#F0F8FF",
+                        textColor: "#000000",
+                        borderStyle: "double",
+                        borderWidth: "3px"
+                    }
+                },
+                renderingStrategy: "html_insertion"
+            };
+
+            // Insert the advanced table
+            await this.documentManager.insertCustomTable(malaysianTableStructure);
+            
+            this.chatbot?.addMessage(
+                '🎉 Advanced Malaysian Statistics Table inserted successfully! This table includes merged headers, professional formatting, and complex structure matching government document standards.',
+                'bot',
+                'success'
+            );
+            
+        } catch (error) {
+            this.showError(`Failed to insert advanced Malaysian table: ${error.message}`);
         }
     }
 

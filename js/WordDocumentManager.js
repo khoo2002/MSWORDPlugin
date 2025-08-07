@@ -210,39 +210,53 @@ class WordDocumentManager {
                     
                     // Add some spacing before the table
                     body.insertParagraph('', Word.InsertLocation.end);
-                    body.insertParagraph('📊 Sample Data Table', Word.InsertLocation.end);
+                    body.insertParagraph('📊 STATISTIK PENURUNAN KANDUNGAN 3R', Word.InsertLocation.end);
+                    body.insertParagraph('Perincian penurunan kandungan 3R dari tahun 2022 hingga 2025', Word.InsertLocation.end);
                     body.insertParagraph('', Word.InsertLocation.end);
                     
-                    // Define table data (like an Excel spreadsheet)
+                    // Define Malaysian statistics table data (your actual complex data)
                     const tableData = [
-                        ['Product', 'Category', 'Price', 'Stock', 'Status'],
-                        ['Laptop Pro 15"', 'Electronics', '$1,299.99', '25', 'Available'],
-                        ['Wireless Mouse', 'Electronics', '$29.99', '150', 'Available'],
-                        ['Office Chair', 'Furniture', '$249.99', '12', 'Limited'],
-                        ['Desk Organizer', 'Office Supplies', '$19.99', '75', 'Available'],
-                        ['Monitor 27"', 'Electronics', '$349.99', '8', 'Limited'],
-                        ['Notebook Set', 'Office Supplies', '$12.99', '200', 'Available']
+                        ['No.', 'Tahun', 'Penurunan Kandungan 3R', 'Jumlah Penurunan 3R', 'Jumlah keseluruhan elemen jelik', 'Col5', 'Col6'],
+                        ['', '', 'Agama', 'Kaum', 'Raja', '', ''],
+                        ['1.', '2022', '40', '119', '16', '175.0', '422.0'],
+                        ['2.', '2023', '519', '960', '154', '1633.0', '3396.0'],
+                        ['3.', '2024', '1772', '2670', '388', '4830.0', '13805.0'],
+                        ['4.', '2025', '148', '992', '76', '1216.0', '25962.0'],
+                        ['Jumlah', '', '2479', '4741', '634', '7854', '43585.0']
                     ];
 
                     // Insert the table
                     const table = body.insertTable(tableData.length, tableData[0].length, Word.InsertLocation.end, tableData);
                     
-                    // Style the table
+                    // Style the table with professional government formatting
                     table.styleBuiltIn = Word.Style.gridTable4_Accent1;
                     table.horizontalAlignment = Word.Alignment.left;
                     
-                    // Style the header row
+                    // Style the main header row (row 0)
                     const headerRow = table.getRow(0);
                     headerRow.font.bold = true;
                     headerRow.font.color = '#FFFFFF';
-                    headerRow.shadingColor = '#2F5597';
+                    headerRow.shadingColor = '#2F5597'; // Government blue
+                    
+                    // Style the sub-header row (row 1 - Agama, Kaum, Raja)
+                    const subHeaderRow = table.getRow(1);
+                    subHeaderRow.font.bold = true;
+                    subHeaderRow.font.color = '#000000';
+                    subHeaderRow.shadingColor = '#E6F3FF'; // Light blue
+                    
+                    // Style the summary/total row (last row)
+                    const summaryRow = table.getRow(tableData.length - 1);
+                    summaryRow.font.bold = true;
+                    summaryRow.font.color = '#000000';
+                    summaryRow.shadingColor = '#F0F8FF'; // Very light blue
                     
                     // Auto-fit the table
                     table.autoFitBehavior = Word.AutoFitBehavior.autoFitToContents;
                     
                     // Add some spacing after the table
                     body.insertParagraph('', Word.InsertLocation.end);
-                    body.insertParagraph('Table generated on: ' + new Date().toLocaleString(), Word.InsertLocation.end);
+                    body.insertParagraph('Sumber: MCMC Malaysia | Tarikh: 31 Julai 2025', Word.InsertLocation.end);
+                    body.insertParagraph('Statistik dihasilkan pada: ' + new Date().toLocaleString(), Word.InsertLocation.end);
                     
                     await context.sync();
                     resolve(true);
@@ -255,7 +269,7 @@ class WordDocumentManager {
 
     /**
      * Insert a custom table with specific data and title
-     * @param {Array} tableData - 2D array of table data
+     * @param {Array} tableData - 2D array of table data OR complex table structure
      * @param {string} title - Title for the table
      * @returns {Promise<boolean>} Success status
      */
@@ -264,6 +278,12 @@ class WordDocumentManager {
             throw new Error('Office.js is not ready');
         }
 
+        // Check if this is a complex table structure or simple 2D array
+        if (this.isComplexTableStructure(tableData)) {
+            return await this.insertAdvancedTable(tableData);
+        }
+
+        // Legacy 2D array handling
         return new Promise((resolve, reject) => {
             Word.run(async (context) => {
                 try {
@@ -302,6 +322,146 @@ class WordDocumentManager {
                 }
             });
         });
+    }
+
+    /**
+     * Check if the table data is a complex structure or simple 2D array
+     * @param {*} tableData - Table data to check
+     * @returns {boolean} True if complex structure
+     */
+    isComplexTableStructure(tableData) {
+        return tableData && 
+               typeof tableData === 'object' && 
+               !Array.isArray(tableData) &&
+               (tableData.structure || tableData.headerLevels || tableData.metadata);
+    }
+
+    /**
+     * Insert advanced table with complex structure, merged cells, and formatting
+     * @param {Object} tableStructure - Complex table structure object
+     * @returns {Promise<boolean>} Success status
+     */
+    async insertAdvancedTable(tableStructure) {
+        if (!this.isOfficeReady) {
+            throw new Error('Office.js is not ready');
+        }
+
+        return new Promise((resolve, reject) => {
+            Word.run(async (context) => {
+                try {
+                    const selection = context.document.getSelection();
+                    
+                    // Add title and metadata
+                    selection.insertParagraph('', Word.InsertLocation.after);
+                    selection.insertParagraph(`📊 ${tableStructure.title}`, Word.InsertLocation.after);
+                    
+                    if (tableStructure.metadata?.description) {
+                        selection.insertParagraph(`${tableStructure.metadata.description}`, Word.InsertLocation.after);
+                    }
+                    
+                    selection.insertParagraph('', Word.InsertLocation.after);
+
+                    // Generate and insert HTML table
+                    const htmlTable = this.generateAdvancedHTMLTable(tableStructure);
+                    selection.insertHtml(htmlTable, Word.InsertLocation.after);
+                    
+                    // Add source and timestamp
+                    selection.insertParagraph('', Word.InsertLocation.after);
+                    if (tableStructure.metadata?.source) {
+                        selection.insertParagraph(`📋 Source: ${tableStructure.metadata.source}`, Word.InsertLocation.after);
+                    }
+                    if (tableStructure.metadata?.lastUpdated) {
+                        selection.insertParagraph(`📅 Last Updated: ${tableStructure.metadata.lastUpdated}`, Word.InsertLocation.after);
+                    }
+                    selection.insertParagraph(`🕒 Generated: ${new Date().toLocaleString()}`, Word.InsertLocation.after);
+                    
+                    await context.sync();
+                    resolve(true);
+                } catch (error) {
+                    reject(error);
+                }
+            });
+        });
+    }
+
+    /**
+     * Generate advanced HTML table with merged cells and complex formatting
+     * @param {Object} tableStructure - Table structure
+     * @returns {string} HTML table string
+     */
+    generateAdvancedHTMLTable(tableStructure) {
+        const { structure, formatting } = tableStructure;
+        let html = '<table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; margin: 10px 0;">';
+
+        // Generate header levels
+        if (structure.headerLevels) {
+            structure.headerLevels.forEach((level, levelIndex) => {
+                html += '<tr>';
+                level.cells.forEach(cell => {
+                    const style = this.generateCellStyle(cell, formatting.headerStyle);
+                    const colspan = cell.colspan > 1 ? ` colspan="${cell.colspan}"` : '';
+                    const rowspan = cell.rowspan > 1 ? ` rowspan="${cell.rowspan}"` : '';
+                    html += `<th${colspan}${rowspan} style="${style}">${cell.text}</th>`;
+                });
+                html += '</tr>';
+            });
+        }
+
+        // Generate data rows
+        if (structure.dataRows) {
+            structure.dataRows.forEach(row => {
+                html += '<tr>';
+                row.cells.forEach(cell => {
+                    const style = this.generateCellStyle(cell, formatting.dataStyle);
+                    const colspan = cell.colspan > 1 ? ` colspan="${cell.colspan}"` : '';
+                    const rowspan = cell.rowspan > 1 ? ` rowspan="${cell.rowspan}"` : '';
+                    html += `<td${colspan}${rowspan} style="${style}">${cell.displayText}</td>`;
+                });
+                html += '</tr>';
+            });
+        }
+
+        // Generate summary rows
+        if (structure.summaryRows) {
+            structure.summaryRows.forEach(row => {
+                html += '<tr>';
+                row.cells.forEach(cell => {
+                    const style = this.generateCellStyle(cell, formatting.summaryStyle);
+                    html += `<td style="${style}">${cell.displayText}</td>`;
+                });
+                html += '</tr>';
+            });
+        }
+
+        html += '</table>';
+        return html;
+    }
+
+    /**
+     * Generate CSS style string for table cell
+     * @param {Object} cell - Cell object
+     * @param {Object} baseStyle - Base style object
+     * @returns {string} CSS style string
+     */
+    generateCellStyle(cell, baseStyle) {
+        const styles = [];
+        
+        // Base styles
+        if (baseStyle.backgroundColor) styles.push(`background-color: ${baseStyle.backgroundColor}`);
+        if (baseStyle.textColor) styles.push(`color: ${baseStyle.textColor}`);
+        if (baseStyle.bold) styles.push('font-weight: bold');
+        styles.push('border: 1px solid #000000');
+        styles.push('padding: 8px');
+        
+        // Cell-specific alignment
+        if (cell.alignment) styles.push(`text-align: ${cell.alignment}`);
+        
+        // Data type specific formatting
+        if (cell.dataType === 'number' || cell.dataType === 'decimal') {
+            styles.push('font-family: "Courier New", monospace');
+        }
+        
+        return styles.join('; ');
     }
 
     /**

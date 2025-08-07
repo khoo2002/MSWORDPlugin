@@ -156,20 +156,57 @@ class OllamaAIProvider extends BaseAIProvider {
      * @param {Object} options - Additional options
      * @param {string} options.systemMessage - System instructions for analysis
      * @param {string} options.fullDocumentText - Complete document text for context
+     * @param {Array} focusAreas - Array of focus areas for analysis (grammar, style, clarity, etc.)
+     * @param {string} userGuidance - User-provided guidance from \analyse commands
      * @returns {Promise<Object>} Ollama suggestions (ALL SUGGESTIONS IN MALAY)
      */
-    async getParagraphSuggestions(paragraphs, options = {}) {
+    async getParagraphSuggestions(paragraphs, options = {}, focusAreas = [], userGuidance = '') {
         if (!this.isConfigured()) {
             throw new Error('Ollama API URL not configured');
         }
 
         const url = `${this.apiUrl}/api/chat`;
         
-        // Build comprehensive prompt with MALAY language requirement
+        // Determine analysis type based on parameters
+        const analysisType = (focusAreas.length > 0 || userGuidance.trim()) ? 'command' : 'natural';
+        
+        // Build comprehensive prompt with MALAY language requirement and focus areas
         let prompt = `PENTING: Sila beri semua cadangan dalam BAHASA MELAYU sahaja. Jangan gunakan bahasa Inggeris untuk cadangan.
 
-${options.systemMessage || 'Sebagai pembantu penulisan profesional,'} analisa dokumen berikut dan berikan cadangan penambahbaikan yang spesifik.`;
-        
+Anda adalah penganalisis penulisan pakar dengan pengetahuan mendalam tentang:
+- Peraturan tatabahasa dan sintaks
+- Gaya dan nada penulisan
+- Struktur dan aliran dokumen
+- Optimisasi kejelasan dan kebolehbacaan
+- Piawaian penulisan profesional dan akademik
+
+## Konteks Analisis:
+- Jenis Analisis: ${analysisType}`;
+
+        // Add focus areas if provided
+        if (focusAreas.length > 0) {
+            prompt += `\n- Bidang Fokus: ${focusAreas.join(', ')}`;
+        }
+
+        // Add user guidance if provided
+        if (userGuidance.trim()) {
+            prompt += `\n- Panduan Pengguna: "${userGuidance}"`;
+        }
+
+        prompt += `\n- Jumlah Perenggan: ${paragraphs.length}
+
+## Tugasan Utama:
+Analisa perenggan dokumen yang diberikan dan hasilkan cadangan yang spesifik dan boleh dilaksanakan berdasarkan bidang fokus dan panduan pengguna.`;
+
+        // Add focus area specific instructions
+        if (focusAreas.length > 0) {
+            prompt += `\n\n## Arahan Khusus:
+1. **Prioriti Panduan Pengguna**: Arahan khusus pengguna mengambil keutamaan
+2. **Pematuhan Bidang Fokus**: Tumpukan pada bidang yang dinyatakan: ${focusAreas.join(', ')}
+3. **Respons Berstruktur**: Berikan analisis berstruktur dan boleh dilaksanakan
+4. **Ambang Kualiti**: Hanya cadangkan perubahan dengan keyakinan > 0.7`;
+        }
+
         // Add full document context (PRIORITY)
         if (options.fullDocumentText && options.fullDocumentText.trim()) {
             prompt += `\n\nKONTEKS DOKUMEN PENUH (GUNAKAN SEBAGAI RUJUKAN UTAMA):\n${options.fullDocumentText}\n\n`;
@@ -180,25 +217,41 @@ ${options.systemMessage || 'Sebagai pembantu penulisan profesional,'} analisa do
 {
   "totalParagraphs": ${paragraphs.length},
   "documentTheme": "penerangan ringkas tentang tema utama dokumen (DALAM BAHASA MELAYU)",
+  "analysisType": "${analysisType}",
+  "overallScore": "nombor (0-100) - skor kualiti dokumen",
   "suggestions": [
     {
-      "paragraphIndex": 0,
-      "originalText": "teks perenggan asal",
-      "suggestedText": "teks perenggan yang diperbaiki (DALAM BAHASA MELAYU)",
-      "type": "clarity|grammar|style|structure|vocabulary|coherence|flow",
-      "reason": "penjelasan ringkas tentang penambahbaikan (DALAM BAHASA MELAYU)",
-      "contextualNote": "bagaimana penambahbaikan ini sesuai dalam keseluruhan dokumen (DALAM BAHASA MELAYU)"
+      "id": "pengecam unik",
+      "paragraphIndex": "nombor - indeks perenggan sasaran",
+      "originalText": "teks asal tepat",
+      "suggestedText": "versi yang diperbaiki (DALAM BAHASA MELAYU)",
+      "type": "clarity|grammar|style|structure|flow|tone",
+      "reason": "penjelasan jelas tentang penambahbaikan (DALAM BAHASA MELAYU)",
+      "confidence": "nombor (0-1) - keyakinan AI dalam cadangan",
+      "severity": "low|medium|high|critical"
     }
   ],
+  "documentMetrics": {
+    "averageWordsPerParagraph": "nombor",
+    "readabilityScore": "nombor (0-100)",
+    "consistencyScore": "nombor (0-100)"
+  },
   "timestamp": "${new Date().toISOString()}"
 }
 
-Pertimbangkan konteks, tema, dan aliran keseluruhan dokumen semasa membuat cadangan. Hanya cadangkan penambahbaikan untuk perenggan yang benar-benar memerlukannya. Langkau perenggan yang sangat pendek (kurang dari 20 aksara).
+Pertimbangkan konteks, tema, dan aliran keseluruhan dokumen semasa membuat cadangan. Hanya cadangkan penambahbaikan untuk perenggan yang benar-benar memerlukannya. Langkau perenggan yang sangat pendek (kurang dari 20 aksara).`;
+
+        // Add user guidance reminder if provided
+        if (userGuidance.trim()) {
+            prompt += `\n\nINGAT: Pastikan semua cadangan selaras dengan panduan pengguna: "${userGuidance}"`;
+        }
+
+        prompt += `
 
 PERENGGAN UNTUK DIANALISA:
 ${paragraphs.map((p, i) => `[${i}]: ${p.text}`).join('\n\n')}
 
-INGAT: Semua suggestedText, reason, contextualNote dan documentTheme MESTI dalam BAHASA MELAYU.
+INGAT: Semua suggestedText, reason, dan documentTheme MESTI dalam BAHASA MELAYU.
 Balas hanya dengan objek JSON, tiada teks tambahan.`;
 
         const requestBody = {

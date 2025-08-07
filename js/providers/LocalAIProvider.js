@@ -85,14 +85,23 @@ class LocalAIProvider extends BaseAIProvider {
      * @param {Object} options - Additional options
      * @param {string} options.systemMessage - System instructions for analysis
      * @param {string} options.fullDocumentText - Complete document text for context
+     * @param {Array} options.focusAreas - Areas to focus analysis on
+     * @param {string} options.userGuidance - User guidance from \analyse command
+     * @param {string} options.analysisType - Type of analysis (command, natural, etc.)
      * @returns {Promise<Object>} Local suggestions
      */
     async getParagraphSuggestions(paragraphs, options = {}) {
         try {
+            // Build comprehensive analysis instruction
+            const analysisInstruction = this._buildAnalysisInstruction(options);
+            
             const requestBody = { 
                 paragraphs,
-                systemMessage: options.systemMessage,
-                fullDocumentText: options.fullDocumentText
+                systemMessage: analysisInstruction,
+                fullDocumentText: options.fullDocumentText,
+                focusAreas: options.focusAreas || [],
+                userGuidance: options.userGuidance || '',
+                analysisType: options.analysisType || 'standard'
             };
             
             const response = await this.makeRequest(`${this.baseUrl}/analyze-paragraphs`, {
@@ -183,6 +192,68 @@ class LocalAIProvider extends BaseAIProvider {
         const randomResponse = responses[Math.floor(Math.random() * responses.length)];
         
         return this.createResponse(randomResponse, 'local-fallback');
+    }
+
+    /**
+     * Build comprehensive analysis instruction for AI
+     * @param {Object} options - Analysis options
+     * @returns {string} Formatted analysis instruction
+     */
+    _buildAnalysisInstruction(options) {
+        let instruction = `You are an expert writing analyst. Analyze the provided document paragraphs and provide specific, actionable suggestions for improvement.
+
+## Analysis Context:
+- Analysis Type: ${options.analysisType || 'standard'}
+- Focus Areas: ${options.focusAreas?.length ? options.focusAreas.join(', ') : 'comprehensive analysis'}
+${options.userGuidance ? `- User Guidance: "${options.userGuidance}"` : ''}
+
+## Output Format Requirements:
+Return a JSON object with this exact structure:
+{
+  "totalParagraphs": number,
+  "documentTheme": "string describing the document type/theme",
+  "analysisType": "${options.analysisType || 'standard'}",
+  "suggestions": [
+    {
+      "id": "unique_suggestion_id",
+      "paragraphIndex": number,
+      "originalText": "exact original paragraph text",
+      "suggestedText": "improved paragraph text",
+      "type": "clarity|grammar|style|structure|flow|tone",
+      "reason": "clear explanation of why this improvement is needed",
+      "confidence": number_between_0_and_1,
+      "severity": "low|medium|high"
+    }
+  ],
+  "timestamp": "ISO_8601_timestamp"
+}
+
+## Analysis Guidelines:
+1. **Focus Areas**: ${options.focusAreas?.length ? 
+    `Prioritize these areas: ${options.focusAreas.join(', ')}` : 
+    'Analyze all aspects: grammar, style, clarity, structure, flow, and tone'}
+
+2. **User Guidance**: ${options.userGuidance ? 
+    `Pay special attention to: "${options.userGuidance}"` : 
+    'Apply general best practices for clear, effective writing'}
+
+3. **Suggestion Quality**:
+   - Only suggest changes that significantly improve the text
+   - Provide specific, actionable improvements
+   - Explain the reasoning clearly
+   - Maintain the author's voice and intent
+
+4. **Document Context**: Consider the full document context when making suggestions
+
+5. **Confidence Scoring**:
+   - 0.9-1.0: High confidence, clear improvement
+   - 0.7-0.8: Good suggestion, likely beneficial
+   - 0.5-0.6: Moderate suggestion, context-dependent
+   - Below 0.5: Don't include the suggestion
+
+Analyze each paragraph and provide only high-quality suggestions that will meaningfully improve the document.`;
+
+        return instruction;
     }
 
     /**

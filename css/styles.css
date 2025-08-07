@@ -1129,6 +1129,27 @@ body {
     color: #495057;
 }
 
+.modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+    background: #f8f9fa;
+    color: #dc3545;
+}
+
 .close {
     font-size: 24px;
     cursor: pointer;
@@ -1176,6 +1197,32 @@ body {
     padding: 10px 15px;
     font-size: 0.85rem;
     border-radius: 6px;
+}
+
+.modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid #e1e5e9;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    background: #f8f9fa;
+    border-radius: 0 0 8px 8px;
+}
+
+.modal-footer .btn-secondary {
+    background: #6c757d;
+    color: white;
+    border: 1px solid #6c757d;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s ease;
+}
+
+.modal-footer .btn-secondary:hover {
+    background: #5a6268;
+    border-color: #5a6268;
 }
 
 .form-group {
@@ -1717,4 +1764,257 @@ body {
     background: #fff3cd;
     padding: 1px 2px;
     border-radius: 2px;
+}
+
+/* API Table Specific Styles */
+.api-badge {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 8px;
+    font-weight: 600;
+    margin-left: 8px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+.btn-refresh-template {
+    background: #17a2b8;
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    margin-left: 8px;
+    transition: all 0.2s;
+}
+
+.btn-refresh-template:hover {
+    background: #138496;
+    transform: translateY(-1px);
+}
+
+.table-content table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.8em;
+    max-height: 200px;
+    overflow: hidden;
+}
+
+.table-content table td,
+.table-content table th {
+    border: 1px solid #dee2e6;
+    padding: 4px 8px;
+    text-align: left;
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.table-content table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+/* Error Template Styles */
+.error-template {
+    border: 2px dashed #dc3545;
+    background-color: #f8d7da;
+    opacity: 0.7;
+}
+
+.error-template .template-title {
+    color: #721c24;
+}
+
+.error-template .template-description {
+    color: #721c24;
+    font-style: italic;
+}
+
+/* Malaysian Statistics specific styling */
+.template-category:contains("Malaysian") {
+    background: #dc3545;
+    color: white;
+}
+
+/* Loading states for API calls */
+.tables-loading-api {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    color: #6c757d;
+    animation: fadeInOut 1.5s infinite;
+}
+
+@keyframes fadeInOut {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+
+.tables-loading-api::before {
+    content: '🌐';
+    margin-right: 8px;
+    animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* =============================================================================
+   TABLE PREVIEW BUTTON AND MODAL STYLES
+   ============================================================================= */
+
+/* Preview button in template header */
+.btn-preview-table {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-preview-table:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+}
+
+.btn-preview-table:active {
+    transform: translateY(0);
+}
+
+/* Table preview modal */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 20px;
+    box-sizing: border-box;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.modal-overlay.show {
+    opacity: 1;
+}
+
+.table-preview-modal {
+    max-width: 90vw;
+    max-height: 90vh;
+    width: 800px;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    transform: scale(0.9);
+    transition: transform 0.3s ease;
+}
+
+.modal-overlay.show .table-preview-modal {
+    transform: scale(1);
+}
+
+.table-preview-modal .modal-body {
+    max-height: 70vh;
+    overflow: auto;
+    padding: 0;
+}
+
+.table-preview-content {
+    width: 100%;
+    overflow: auto;
+}
+
+.table-preview-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0;
+    font-size: 14px;
+}
+
+.table-preview-content th,
+.table-preview-content td {
+    padding: 8px 12px;
+    border: 1px solid #dee2e6;
+    text-align: left;
+    vertical-align: top;
+}
+
+.table-preview-content th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.table-preview-content tbody tr:nth-child(even) {
+    background: #f8f9fa;
+}
+
+.table-preview-content tbody tr:hover {
+    background: #e3f2fd;
+}
+
+/* Responsive table preview */
+@media (max-width: 768px) {
+    .table-preview-modal {
+        width: 95vw;
+        margin: 10px;
+    }
+    
+    .table-preview-content {
+        font-size: 12px;
+    }
+    
+    .table-preview-content th,
+    .table-preview-content td {
+        padding: 6px 8px;
+    }
+}
+
+/* Template header styling updates for preview button */
+.template-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e9ecef;
+    gap: 10px;
+}
+
+.template-title {
+    font-weight: 600;
+    color: #495057;
+    font-size: 14px;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
