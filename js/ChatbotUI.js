@@ -226,8 +226,8 @@ class ChatbotUI {
             if (template.apiSource && template.richHtml) {
                 await this._insertAPITableWithHTML(template);
             } else if (template.rows) {
-                // Regular row-based table
-                await this.#documentManager.insertCustomTable(template.rows, template.title);
+                // Regular row-based table - insert only the table without title
+                await this.#documentManager.insertCustomTable(template.rows, '');
             } else {
                 throw new Error('Invalid table template format');
             }
@@ -242,7 +242,7 @@ class ChatbotUI {
     }
 
     /**
-     * Insert API table with rich HTML formatting using direct HTML insertion
+     * Insert API table with rich HTML formatting at current cursor position
      * @private
      * @param {Object} template - Template with rich HTML
      */
@@ -250,62 +250,44 @@ class ChatbotUI {
         return new Promise((resolve, reject) => {
             Word.run(async (context) => {
                 try {
-                    const body = context.document.body;
+                    // Get the current selection/cursor position instead of document body
+                    const selection = context.document.getSelection();
                     
-                    // Add table title and metadata as regular paragraphs
-                    body.insertParagraph('', Word.InsertLocation.end);
-                    const titleParagraph = body.insertParagraph(template.title || 'API Table', Word.InsertLocation.end);
-                    titleParagraph.font.bold = true;
-                    titleParagraph.font.size = 14;
-                    
-                    if (template.metadata?.sourceFile) {
-                        const sourceParagraph = body.insertParagraph(`Source: ${template.metadata.sourceFile}`, Word.InsertLocation.end);
-                        sourceParagraph.font.size = 9;
-                        sourceParagraph.font.color = '#666666';
-                    }
-                    
-                    if (template.metadata?.processingDate) {
-                        const dateParagraph = body.insertParagraph(`Processed: ${template.metadata.processingDate}`, Word.InsertLocation.end);
-                        dateParagraph.font.size = 9;
-                        dateParagraph.font.color = '#666666';
-                    }
-                    
-                    body.insertParagraph('', Word.InsertLocation.end);
+                    // Insert only the table content without title, source, or metadata
+                    selection.insertParagraph('', Word.InsertLocation.after);
 
-                    // Direct HTML insertion - preserves all original formatting
+                    // Direct HTML insertion - preserves all original formatting, table only
                     if (template.richHtml) {
                         try {
-                            console.log('Inserting rich HTML table directly into Word...');
+                            console.log('Inserting rich HTML table directly into Word at cursor position...');
+                            
+                            // Extract only the table HTML, removing any surrounding content
+                            const cleanTableHtml = this._extractTableOnly(template.richHtml);
                             
                             // Sanitize HTML to ensure it's safe for Word
-                            const sanitizedHtml = this._sanitizeHtml(template.richHtml);
+                            const sanitizedHtml = this._sanitizeHtml(cleanTableHtml);
                             
-                            // Insert the HTML table directly
-                            body.insertHtml(sanitizedHtml, Word.InsertLocation.end);
+                            // Insert the HTML table directly at cursor position
+                            selection.insertHtml(sanitizedHtml, Word.InsertLocation.after);
                             
-                            console.log('✅ Rich HTML table inserted successfully');
+                            console.log('✅ Rich HTML table inserted successfully at cursor position');
                         } catch (htmlError) {
                             console.warn('Direct HTML insertion failed, falling back to table parsing:', htmlError);
                             
                             // Fallback: parse HTML to table data
                             const tableData = this._parseHTMLTableToArray(template.richHtml);
                             if (tableData && tableData.length > 0) {
-                                const table = body.insertTable(tableData.length, tableData[0].length, Word.InsertLocation.end, tableData);
+                                const table = selection.insertTable(tableData.length, tableData[0].length, Word.InsertLocation.after, tableData);
                                 table.styleBuiltIn = Word.Style.gridTable4_Accent1;
                                 table.autoFitBehavior = Word.AutoFitBehavior.autoFitToContents;
                             } else {
-                                body.insertParagraph(`Table: ${template.description}`, Word.InsertLocation.end);
+                                // If parsing fails, just insert a simple message
+                                selection.insertParagraph('Table content could not be processed.', Word.InsertLocation.after);
                             }
                         }
                     } else {
-                        body.insertParagraph('No table content available.', Word.InsertLocation.end);
+                        selection.insertParagraph('No table content available.', Word.InsertLocation.after);
                     }
-                    
-                    // Add footer
-                    body.insertParagraph('', Word.InsertLocation.end);
-                    const footerParagraph = body.insertParagraph(`Table inserted: ${new Date().toLocaleString()}`, Word.InsertLocation.end);
-                    footerParagraph.font.size = 9;
-                    footerParagraph.font.color = '#999999';
                     
                     await context.sync();
                     resolve(true);
@@ -1558,6 +1540,37 @@ ${suggestions.suggestions?.length > 0 ?
             .replace(/<iframe[^>]*>.*?<\/iframe>/gi, '');
 
         return sanitized;
+    }
+
+    /**
+     * Extract only the table HTML from rich HTML content
+     * @private
+     * @param {string} richHtml - Rich HTML content that may contain table and other elements
+     * @returns {string} Clean table HTML only
+     */
+    _extractTableOnly(richHtml) {
+        try {
+            if (!richHtml || typeof richHtml !== 'string') {
+                return '<table><tr><td>No table content available</td></tr></table>';
+            }
+
+            // Create a temporary element to parse HTML
+            const tempDiv = document.createElement('div');
+            const sanitizedHtml = this._sanitizeHtml(richHtml);
+            tempDiv.innerHTML = sanitizedHtml;
+            
+            // Find the table element
+            const table = tempDiv.querySelector('table');
+            if (!table) {
+                return '<table><tr><td>No table found in content</td></tr></table>';
+            }
+
+            // Return only the table HTML without any surrounding content
+            return table.outerHTML;
+        } catch (error) {
+            console.warn('Error extracting table-only HTML:', error);
+            return '<table><tr><td>Error processing table content</td></tr></table>';
+        }
     }
 
     /**
